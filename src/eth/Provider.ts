@@ -1,5 +1,5 @@
-// import { ethers } from 'ethers'
 import Web3 from 'web3'
+// import { ethers } from 'ethers'
 
 const network = 'mainnet'
 // const provider = ethers.getDefaultProvider(network, {

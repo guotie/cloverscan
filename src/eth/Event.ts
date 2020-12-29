@@ -2,7 +2,7 @@ import prisma from "../model/db"
 
 class EthTxEvent {
     id: number
-    name: string      // 后期填入
+    name: string              // 后期填入
     address: string
     data: string
     topic0: string

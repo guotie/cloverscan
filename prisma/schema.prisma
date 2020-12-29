@@ -169,7 +169,7 @@ model eth_block {
   parent_hash  String?
   next_hash    String?
   merkle_hash  String?
-  difficulty   Int?
+  difficulty   String?
   interval     Int?
   fee          String?
   nonce        String?

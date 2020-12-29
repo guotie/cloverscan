@@ -12,13 +12,13 @@ class Contract {
     txHash: string
     logo: string
     precision: number | null
-    source: number    // 是否已经验证
+    source: number              // 是否已经验证
     profiles: string
     prices: BigNumber | null
     site: string
     name: string
     symbol: string
-    height: number  // 创建区块
+    height: number             // 创建区块
     contractType: string
     content: string
     tags: string[]
@@ -27,7 +27,7 @@ class Contract {
     // 统计数据
     holders: number
     transfers: number
-    tabs: string[]       // 合约可以展现的二级列表
+    tabs: string[]           // 合约可以展现的二级列表
 
     constructor(address: string, creater: string, txHash: string, name: string, symbol: string, height: number, precision?: number) {
         this.id = 0

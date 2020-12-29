@@ -12,6 +12,7 @@ const BlockchainNetwork = 'Mainnet'
 const BlockchainSymbol = 'ETH'
 
 // 挖矿奖励, 不包括叔块
+// todo: fix it!!!
 function blockReward(height: number) {
     if (height < 87493855) {
         return '5'
@@ -55,6 +56,7 @@ class EthBlock implements BaseBlock {
     extraData: string
     txRootHash: string
     txInternals: number
+    nonce: string
     // totalEvents: number
 
     constructor(b: BlockTransactionString) {
@@ -85,6 +87,7 @@ class EthBlock implements BaseBlock {
         this.txRootHash = b.transactionRoot ?? ''
         // this.totalEvents = b.totalEvents ?? 0
         this.txInternals = 0
+        this.nonce = b.nonce
     }
 
     async createBlock() {
@@ -101,7 +104,7 @@ class EthBlock implements BaseBlock {
                 parent_hash: block.parentHash,
                 next_hash: block.nextHash,
                 merkle_hash: block.merkleHash,
-                difficulty: block.difficulty,
+                difficulty: block.difficulty + '',
                 interval: 0,
                 fee: block.fee.toString(),
                 // for ETH
@@ -115,6 +118,7 @@ class EthBlock implements BaseBlock {
                 tx_root_hash: block.txRootHash,
                 // total_events: block.totalEvents,
                 tx_internals: block.txInternals ?? 0,
+                nonce: block.nonce,
             }
         })
 
@@ -160,12 +164,19 @@ async function handleBlock(provider: Web3, height: number) {
 
     if (block.uncles.length > 0) {
         uncles = eb.doUncleBlocks(block.uncles)
+        uncles?.forEach(uncle => {
+            uncle.create()
+        })
     }
     let { txList, events } = await doTransactionList(provider, eb, block.transactions)
 
+    txList.forEach(tx => tx.create())
+    events.forEach(evt => evt.create())
+    eb.createBlock()
 }
 
 export {
     EthBlock,
-    getBlock
+    getBlock,
+    handleBlock,
 }

@@ -7,6 +7,7 @@ import Tx from '../model/tx'
 import { e1_18 } from './utils'
 import prisma from '../model/db'
 import EthTxEvent from './Event'
+import { EBADF } from 'constants'
 
 
 // 非合约调用
@@ -77,7 +78,7 @@ class EthTx implements Tx {
         this.input = tx.input
         this.interact = false
         this.transferType = TxTypePeer
-        this.transferType = timestamp
+        // this.transferType = timestamp
         this.status = TxStatusConfirmed
         this.fee = new BigNumber(0)
         this.timestamp = timestamp
@@ -127,6 +128,7 @@ class EthTx implements Tx {
 
         if (logs.length === 1 && isTransfer(logs[0].topics)) {
             // todo 疑似 erc20, 生成 token
+            this.transferType = TxTypeToken
         }
 
         return events
@@ -223,14 +225,13 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
     await new Promise(function(resolve) {
         let counter = 0, total = 0
         for (let i = 0; i < txList.length; i ++) {
-            if (txList[i] && txList[i].input === '0x') {
+            if (txList[i] && txList[i].input !== '0x') {
                 total ++
                 // @ts-ignore
                 batch.add(provider.eth.getTransactionReceipt.request(txList[i].hash, (err, data) => {
                     // console.log(err, data)
                     if (!err) {
                         txList[i].fillReceipt(data)
-                        totalFee.plus(txList[i].fee)
 
                         if (data.logs.length > 0) {
                             // 提取日志
@@ -243,15 +244,19 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                         resolve(txList);
                     }
                 }))
-            } else {
-                totalFee.plus(txList[i].fee)
             }
         }
 
         batch.execute()
     })
 
-    // console.log('get tx receipt done')
+    for (let i = 0; i < txList.length; i ++) {
+        // console.log('tx fee', i, txList[i].fee.toString())
+        totalFee = totalFee.plus(txList[i].fee)
+    }
+
+    block.fee = totalFee.div(e1_18)
+    console.log('get tx receipt done: fee', totalFee.toString())
     return {txList, events}
 }
 

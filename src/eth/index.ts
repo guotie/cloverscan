@@ -1,5 +1,5 @@
 import provider from './Provider'
-import { EthBlock } from './Block'
+import { EthBlock, handleBlock } from './Block'
 import { doTransactionList, getEthTx } from './Tx'
 
 import Eth from 'web3-eth'
@@ -10,7 +10,6 @@ async function sleep(ms: number) {
         setTimeout(resolve, ms)
     })
 }
-
 
 function toBlock(block: Eth.BlockTransactionString): EthBlock {
     return new EthBlock(block)
@@ -29,6 +28,8 @@ async function getLatestBlockNumber(): Promise<number> {
     let height = await getLatestBlockNumber()
     console.log('height: ', height)
 
+    handleBlock(provider, 11546811)
+    return
     await sleep(1000)
 
     let block = await getBlock(11546811)
@@ -48,7 +49,7 @@ async function getLatestBlockNumber(): Promise<number> {
     console.log('token transfer:', ttx)
     console.log(ttx.txLogs)
 
-    // // internal call
+    // internal call
     let ctx = await getEthTx(provider, '0xdca039999cd960538c08bd74e0072f43b4b8d3b8b3104fd33f2b56495eb88ee6', 0)
     console.log('contract call tx:', ctx)
     console.log(ctx.txLogs)
