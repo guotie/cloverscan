@@ -1,0 +1,55 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "eth",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\build\\eth\\index.js",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "watch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "preLaunchTask": "tsc: watch - tsconfig.json",
+            "program": "${workspaceFolder}\\${relativeFile}",
+            "outFiles": [
+                "${workspaceFolder}/build/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "db-network-test",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "preLaunchTask": "tsc: watch - tsconfig.json",
+            "program": "${workspaceFolder}\\build\\model\\network.js",
+            "outFiles": [
+                "${workspaceFolder}/build/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "btc-rpc",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\build\\btc\\rpc.js",
+            "outFiles": [
+                "${workspaceFolder}/build/**/*.js"
+            ]
+        }
+    ]
+}
