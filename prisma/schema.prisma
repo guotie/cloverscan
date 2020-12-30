@@ -161,7 +161,7 @@ model dot_block {
 model eth_block {
   id           Int     @id @default(autoincrement())
   hash         String?
-  height       Int?
+  height       Int?    @unique
   ts           Int?
   miner_by     String?
   total_tx     Int?
@@ -184,7 +184,6 @@ model eth_block {
   tx_internals Int?
 
   @@index([hash], name: "hash")
-  @@index([height], name: "height")
 }
 
 model eth_tx {
@@ -240,6 +239,8 @@ model eth_block_uncle {
 
 model eth_tx_logs {
   id           Int     @id @default(autoincrement())
+  from         String?
+  to           String?
   block_hash   String?
   tx_hash      String?
   block_number Int?

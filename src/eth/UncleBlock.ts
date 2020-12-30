@@ -28,4 +28,18 @@ class UncleBlock {
     }
 }
 
+// 批量入库 UncleBlock
+export async function batchCreateUncleBlock(uncles: Array<UncleBlock>) {
+    if (uncles.length === 0) {
+        return
+    }
+    
+    let values = uncles.map(
+        uncle => `('${uncle.height}', '${uncle.hash}', '${uncle.uncle}', '${uncle.timestamp}')`
+      )
+    let query = `insert into "eth_block_uncle" ("height", "hash", "uncle", "timestamp") values ${values.join(',')}`
+
+    await prisma.$executeRaw(query)
+}
+
 export default UncleBlock

@@ -4,8 +4,10 @@ import Web3 from 'web3'
 
 import {Block as BaseBlock } from '../model/block'
 import prisma from '../model/db'
-import UncleBlock from './UncleBlock'
-import { doTransactionList } from './Tx'
+import UncleBlock, { batchCreateUncleBlock } from './UncleBlock'
+import { batchCreateEthTx, doTransactionList } from './Tx'
+import { batchCreateEthTxEvent } from './Event'
+import { BalanceEvent, updaterMinerBalance, pushEvents } from './Push'
 
 const BlockchainEthereum = 'Ethereum'
 const BlockchainNetwork = 'Mainnet'
@@ -126,10 +128,7 @@ class EthBlock implements BaseBlock {
     }
 
     // 处理叔块
-    doUncleBlocks(uncles: Array<string>): Array<UncleBlock> | undefined {
-        if (uncles.length === 0) {
-            return
-        }
+    doUncleBlocks(uncles: Array<string>): Array<UncleBlock> {
         let unclesBlock: Array<UncleBlock> = []
         for (let i = 0; i < uncles.length; i ++) {
             let uncle = new UncleBlock(this.height, this.hash, this.timestamp, uncles[i])
@@ -157,22 +156,44 @@ async function getBlock(provider: Web3, height: number) {
 }
 
 // 处理 block
+// 1. 余额的变动通知kafka, 由kafka的consumer程序处理
+// 2. 这里入库的是block, tx, contract create, events
+// 3. 可以触发余额变动的包括:
+//    a. 产块地址eth更新
+//    b. eth转账交易(from, to)
+//    c. 合约transfer(from, to), burn(from), mint(from), send(from, to), transferFrom()事件
+//    d. 其他事件
 async function handleBlock(provider: Web3, height: number) {
     let block = await getBlock(provider, height)
+    let kafkaEvents: Array<BalanceEvent> = []
     let eb = new EthBlock(block)
-    let uncles: Array<UncleBlock> | undefined
+    let uncles: Array<UncleBlock> = []
+
+    let { txList, events, balanceEvents } = await doTransactionList(provider, eb, block.transactions)
 
     if (block.uncles.length > 0) {
         uncles = eb.doUncleBlocks(block.uncles)
-        uncles?.forEach(uncle => {
-            uncle.create()
-        })
+        // todo 叔块奖励 balance 更新事件
     }
-    let { txList, events } = await doTransactionList(provider, eb, block.transactions)
 
-    txList.forEach(tx => tx.create())
-    events.forEach(evt => evt.create())
-    eb.createBlock()
+    kafkaEvents.push(updaterMinerBalance(block.miner))
+    kafkaEvents.push(...balanceEvents)
+    // await pushEvents(balanceEvents)
+
+    Promise.all([
+        batchCreateEthTx(txList),       // 交易
+        batchCreateEthTxEvent(events),  // tx logs
+        batchCreateUncleBlock(uncles),  // 叔块
+        eb.createBlock(),               // 块
+    ]).then(() => {
+        pushEvents(kafkaEvents)
+    }).catch(err => {
+        // todo 异常处理流程
+        // 删除叔块
+    })
+    // txList.forEach(tx => tx.create())
+    // events.forEach(evt => evt.create())
+    // eb.createBlock()
 }
 
 export {

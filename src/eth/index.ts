@@ -28,8 +28,8 @@ async function getLatestBlockNumber(): Promise<number> {
     let height = await getLatestBlockNumber()
     console.log('height: ', height)
 
-    handleBlock(provider, 11546811)
-    return
+    // handleBlock(provider, 11546811)
+    // return
     await sleep(1000)
 
     let block = await getBlock(11546811)

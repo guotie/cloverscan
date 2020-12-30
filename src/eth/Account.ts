@@ -1,6 +1,7 @@
 import BigNumber from "bignumber.js"
 
 import prisma from '../model/db'
+import { pushKafka } from '../kafka/push'
 
 class Account {
     id: number
@@ -50,6 +51,17 @@ class Account {
             }
         })
     }
+
+    // 通知kafka, 账号余额更新
+    pushEthAccountCreate() {
+        pushKafka('account-create', this)
+    }
 }
+
+// 通知余额更新事件
+export function pushEthAccount(owner: string, token: string) {
+
+}
+
 
 export default Account

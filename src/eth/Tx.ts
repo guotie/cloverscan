@@ -7,7 +7,8 @@ import Tx from '../model/tx'
 import { e1_18 } from './utils'
 import prisma from '../model/db'
 import EthTxEvent from './Event'
-import { EBADF } from 'constants'
+import Contract from './Contract'
+import { BalanceEvent, updaterETHTransfer } from './Push'
 
 
 // 非合约调用
@@ -19,6 +20,7 @@ const TxStatusConfirmed = 0
 const TxStatusConfirming = 1
 const TxStatusPending = 2
 
+// todo: mint send burn transferFrom withdraw deposit ....
 const famousEvents: {[index: string]: string} = {
     '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef': 'Transfer (index_topic_1 address src, index_topic_2 address dst, uint256 wad)',
     '0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c': 'Deposit (index_topic_1 address dst, uint256 wad)',
@@ -90,6 +92,7 @@ class EthTx implements Tx {
         if (this.input === '0x') {
             this.gasUsed = 21000
             this.fee = EthTx.calcTxFee(this.gasPrice, this.gasUsed)
+            // todo 通知kafka 触发余额变更事件
         }
         this.txLogs = []
     }
@@ -111,6 +114,12 @@ class EthTx implements Tx {
 
         if (receipt.contractAddress) {
             this.contractCreated = receipt.contractAddress
+            // 合约创建的input太长, 单独放在合约的表中, 这里把input截断
+            // todo 合约创建
+            console.info('contract created: creater: %s contract: %s', this.from, this.contractCreated)
+            let contract = new Contract(this.contractCreated, this.from, this.hash, '', '', this.block)
+            this.input = ''
+            return contract
         }
     }
 
@@ -119,7 +128,7 @@ class EthTx implements Tx {
         // todo 很多工作需要进一步细化
         let events = []
         for (let i = 0; i < logs.length; i ++) {
-            let evt = new EthTxEvent(logs[i])
+            let evt = new EthTxEvent(this.from, this.to, logs[i])
             // name
             getEventName(evt)
 
@@ -161,6 +170,11 @@ class EthTx implements Tx {
             }
         })
     }
+
+    // 是否是以太转账交易
+    isEthTransfer() {
+        return this.input === '0x' && this.to !== ''
+    }
 }
 
 async function getEthTx(provider: Web3, hash: string, timestamp: number) {
@@ -186,13 +200,19 @@ function createFromTxReceipt(timestamp: number, tx: Transaction, receipt?: Trans
 }
 
 // 分析交易列表
-async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<string>): Promise<{txList: Array<EthTx>, events: Array<EthTxEvent>}> {
+async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<string>): Promise<{
+    txList: Array<EthTx>,
+    events: Array<EthTxEvent>,
+    contracts: Array<Contract>,
+    balanceEvents: Array<BalanceEvent>
+}> {
     // 1. 地址
     let timestamp = block.timestamp
     let batch = new provider.BatchRequest();
     // for (let i = 0; i < txs.length; i ++) {
     let txList: Array<EthTx> = []
     let events: Array<EthTxEvent> = []
+    let balanceEvents: Array<BalanceEvent> = []
     
     await new Promise(function(resolve, reject) {
         let counter  = 0
@@ -202,7 +222,14 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
             batch.add(provider.eth.getTransaction.request(txHash, (err, data) => {
                 // console.log(err, data)
                 if (!err) {
-                    txList.push(new EthTx(data, timestamp))
+                    let tx = new EthTx(data, timestamp)
+                    txList.push(tx)
+                    if (tx.isEthTransfer()) {
+                        balanceEvents.push(...updaterETHTransfer(tx.from, tx.to))
+                    }
+                } else {
+                    // todo 重新获取?
+                    console.warn('getTransaction failed:', txHash)
                 }
                 counter ++
                 // console.log('tx:', counter)
@@ -227,8 +254,9 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
         for (let i = 0; i < txList.length; i ++) {
             if (txList[i] && txList[i].input !== '0x') {
                 total ++
+                let txHash = txList[i].hash
                 // @ts-ignore
-                batch.add(provider.eth.getTransactionReceipt.request(txList[i].hash, (err, data) => {
+                batch.add(provider.eth.getTransactionReceipt.request(txHash, (err, data) => {
                     // console.log(err, data)
                     if (!err) {
                         txList[i].fillReceipt(data)
@@ -238,6 +266,9 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                             let evt = txList[i].doTxEvents(data.logs)
                             events.push(...evt)
                         }
+                    } else {
+                        // todo 重新获取?
+                        console.warn('getTransactionReceipt failed:', txHash)
                     }
                     counter ++
                     if (counter === total) {
@@ -256,13 +287,28 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
     }
 
     block.fee = totalFee.div(e1_18)
-    console.log('get tx receipt done: fee', totalFee.toString())
-    return {txList, events}
+    // console.log('get tx receipt done: fee', totalFee.toString())
+    return {txList, events, balanceEvents, contracts}
+}
+
+// 批量入库 EthTx
+async function batchCreateEthTx(txList: Array<EthTx>) {
+    if (txList.length === 0) {
+        return
+    }
+    
+    let values = txList.map(
+        tx => `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${tx.amount.toString()}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${tx.input}', '${tx.interact}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
+      )
+    let query = `insert into "eth_tx" ("hash", "block", "pos", "status", "timestamp", "fee", "value", "amount", "from", "to", "real_to", "nonce", "gas_price", "gas_limit", "gas_used", "input_data", "interact", "transfer_type", "is_contract_call", "contract_created") values ${values.join(',')}`
+
+    await prisma.$executeRaw(query)
 }
 
 export {
     EthTx,
     getEthTx,
+    batchCreateEthTx,
     doTransactionList,
     createFromTxReceipt,
 }
