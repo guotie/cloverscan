@@ -9,21 +9,25 @@ import { batchCreateEthTx, cleanEthTxByHeight, doTransactionList } from './Tx'
 import { batchCreateEthTxEvent, cleanEthTxEventsByHeight } from './Event'
 import { BalanceEvent, updaterMinerBalance, pushEvents } from './Push'
 import { batchCreateContract, cleanEthContractByHeight } from './Contract'
+import { pushKafka } from '../kafka/push'
+import { checkBlockScanStatus, setBlockScanstatusDone } from './Status'
 
 const BlockchainEthereum = 'Ethereum'
 const BlockchainNetwork = 'Mainnet'
 const BlockchainSymbol = 'ETH'
 
 // 挖矿奖励, 不包括叔块
-// todo: fix it!!!
+// 
 function blockReward(height: number) {
-    if (height < 87493855) {
-        return '5'
+    // https://media.consensys.net/the-thirdening-what-you-need-to-know-df96599ad857
+    if (height >= 7280000) {
+        return '2'
     }
-    if (height < 104142773) {
+    // The Byzantium hard fork is an update to ethereum’s blockchain that was implemented in October 2017 at block 4,370,000. It consisted of nine Ethereum Improvement Protocols (EIPs) designed to improve ethereum’s privacy, scalability and security attributes. (See also: Why The Ethereum DAO Is Revolutionary.) 
+    if (height >= 4370000) {
         return '3'
     }
-    return '2'
+    return '5'
     // todo
     // https://zhuanlan.zhihu.com/p/28928827
     // 叔块奖励 = ( 叔块高度 + 8 - 包含叔块的区块的高度 ) * 普通区块奖励 / 8
@@ -60,6 +64,7 @@ class EthBlock implements BaseBlock {
     txRootHash: string
     txInternals: number
     nonce: string
+    price: string       // in usd
     // totalEvents: number
 
     constructor(b: BlockTransactionString) {
@@ -91,41 +96,46 @@ class EthBlock implements BaseBlock {
         // this.totalEvents = b.totalEvents ?? 0
         this.txInternals = 0
         this.nonce = b.nonce
+        this.price = ''
     }
 
     async createBlock() {
-        let block = this
-        let res = await prisma.eth_block.create({
-            data: {
-                // id: block.id,
-                hash: block.hash,
-                ts: block.timestamp,
-                height: block.height,
-                miner_by: block.minerBy,
-                total_tx: block.totalTx,
-                block_size: block.blockSize,
-                parent_hash: block.parentHash,
-                next_hash: block.nextHash,
-                merkle_hash: block.merkleHash,
-                difficulty: block.difficulty + '',
-                interval: 0,
-                fee: block.fee.toString(),
-                // for ETH
-                block_reward: block.blockReward,
-                total_diff: block.totalDiff + '',
-                uncle_reward: block.uncleReward,
-                gas_used: block.gasUsed,
-                gas_limit: block.gasLimit,
-                sha_uncles: block.shaUncles,
-                extra_data: block.extraData,
-                tx_root_hash: block.txRootHash,
-                // total_events: block.totalEvents,
-                tx_internals: block.txInternals ?? 0,
-                nonce: block.nonce,
-            }
-        })
+        // let block = this
+        // await prisma.eth_block.create({
+        //     data: {
+        //         // id: block.id,
+        //         hash: block.hash,
+        //         ts: block.timestamp,
+        //         height: block.height,
+        //         miner_by: block.minerBy,
+        //         total_tx: block.totalTx,
+        //         block_size: block.blockSize,
+        //         parent_hash: block.parentHash,
+        //         next_hash: block.nextHash,
+        //         merkle_hash: block.merkleHash,
+        //         difficulty: block.difficulty + '',
+        //         interval: 0,
+        //         fee: block.fee.toString(),
+        //         // for ETH
+        //         block_reward: block.blockReward,
+        //         total_diff: block.totalDiff + '',
+        //         uncle_reward: block.uncleReward,
+        //         gas_used: block.gasUsed,
+        //         gas_limit: block.gasLimit,
+        //         sha_uncles: block.shaUncles,
+        //         extra_data: block.extraData,
+        //         tx_root_hash: block.txRootHash,
+        //         // total_events: block.totalEvents,
+        //         tx_internals: block.txInternals ?? 0,
+        //         nonce: block.nonce,
+        //     }
+        // })
+        // 省去一次查询的时间
+        // 直接用调用 create, prisma 会先insert, 然后 select
+        let val = `('${this.hash}',${this.height},${this.timestamp},'${this.minerBy}',${this.totalTx},${this.blockSize},'${this.parentHash}','${this.nextHash}','${this.merkleHash}',${this.difficulty},0,'${this.fee.toString()}','${this.nonce}','${this.blockReward}',${this.totalDiff},'${this.uncleReward}',${this.gasUsed},'${this.gasLimit}','${this.shaUncles}','${this.extraData}','${this.txRootHash}','${this.txInternals}')`
+        await prisma.$executeRaw('INSERT INTO `clover`.`eth_block` (`hash`,`height`,`ts`,`miner_by`,`total_tx`,`block_size`,`parent_hash`,`next_hash`,`merkle_hash`,`difficulty`,`interval`,`fee`,`nonce`,`block_reward`,`total_diff`,`uncle_reward`,`gas_used`,`gas_limit`,`sha_uncles`,`extra_data`,`tx_root_hash`,`tx_internals`) VALUES ' + val)
 
-        return res
+        // return res
     }
 
     // 处理叔块
@@ -163,44 +173,70 @@ async function getBlock(provider: Web3, height: number) {
 //    a. 产块地址eth更新
 //    b. eth转账交易(from, to)
 //    c. 合约transfer(from, to), burn(from), mint(from), send(from, to), transferFrom()事件
-//    d. 其他事件
+//    d. 合约调用, value 不为零的情况
+//    e. todo swap withdraw eth, 没有事件, 需要 internal tx
+//    e. 其他事件
 async function handleBlock(provider: Web3, height: number) {
-    let block = await getBlock(provider, height)
-    let kafkaEvents: Array<BalanceEvent> = []
-    let eb = new EthBlock(block)
+    try {
+        if (await checkBlockScanStatus(height)) {
+            // 已经扫描或正在扫描中
+            console.warn('block %d is scanning or scanned', height)
+            return
+        }
+    } catch (err) {
+        // still continue scan block
+        console.warn('get block scan status failed:', err)
+    }
+
+    let block, eb, txList, events, contracts, balanceEvents
+    try {
+        block = await getBlock(provider, height)
+        eb = new EthBlock(block)
+        // console.log('block:', block)
+
+        let result = await doTransactionList(provider, eb, block.transactions)
+        txList        = result.txList
+        events        = result.events
+        contracts     = result.contracts
+        balanceEvents = result.balanceEvents
+    } catch (err) {
+        return {err, height}
+    }
+
     let uncles: Array<UncleBlock> = []
-
-    let { txList, events, contracts, balanceEvents } = await doTransactionList(provider, eb, block.transactions)
-
     if (block.uncles.length > 0) {
         uncles = eb.doUncleBlocks(block.uncles)
         // todo 叔块奖励 balance 更新事件
     }
 
+    let kafkaEvents: Array<BalanceEvent> = []
     kafkaEvents.push(updaterMinerBalance(block.miner))
     kafkaEvents.push(...balanceEvents)
     // await pushEvents(balanceEvents)
 
-    Promise.all([
+    return Promise.all([
         batchCreateEthTx(txList),       // 交易
         batchCreateEthTxEvent(events),  // tx logs
         batchCreateUncleBlock(uncles),  // 叔块
         batchCreateContract(contracts), // 合约创建
         eb.createBlock(),               // 块
-    ]).then(() => {
+    ]).then(async () => {
         // 推送需要新建或更新的账号资产信息
         pushEvents(kafkaEvents)
-        // todo 保存扫块状态 zookeeper
-        console.info('scan block %d done', height)
+        // pushKafka('eth-block', {block: height})
+        // 保存扫块状态 redis
+        await setBlockScanstatusDone(height)
+        return height
     }).catch(err => {
-        console.warn('scan block %d failed:', height, err)
+        // console.warn('scan block %d failed:', height, err)
         // todo 异常处理流程
         // 删除叔块
+        throw {err, height}
     })
 }
 
 // 删除块, 用于重新扫块的准备
-async function cleanBlock(height: number) {
+async function cleanBlockDataByHeight(height: number) {
     Promise.all([
         cleanBlockByHeight(height),
         cleanEthContractByHeight(height),
@@ -210,9 +246,9 @@ async function cleanBlock(height: number) {
     ])
 }
 
-// delete all block db: 
+// delete block in db
 async function cleanBlockByHeight(height: number) {
-    await prisma.$executeRaw(`delete from eth_block where block = ${height}`)
+    await prisma.$executeRaw(`delete from eth_block where height = ${height}`)
 }
 
 export {
@@ -220,4 +256,5 @@ export {
     getBlock,
     handleBlock,
     cleanBlockByHeight,
+    cleanBlockDataByHeight,
 }

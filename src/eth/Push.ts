@@ -15,11 +15,15 @@ export const BalanceEventTokenDeposit       = 'token-deposit'   // deposit
 export const BalanceEventTokenWithdraw      = 'token-withdraw'  // withdraw
 
 class BalanceEvent {
+    height?: number
+    txHash?: string
     address: string
     token: string
     action: string
 
-    constructor(address: string, action: string, token = 'ETH') {
+    constructor(address: string, action: string, token = 'ETH', height?: number, txHash?: string, ) {
+        this.height = height
+        this.txHash = txHash
         this.address = address
         this.token = token
         this.action = action
@@ -34,7 +38,7 @@ class BalanceEvent {
 // 批量推送
 async function pushEvents(events: Array<BalanceEvent>) {
     console.info('kafka balance events:', events.length)
-    events.forEach(evt => console.info('    evt: action: %s address: %s token: %s', evt.action, evt.address, evt.token))
+    // events.forEach(evt => console.info('    evt: action: %s address: %s token: %s', evt.action, evt.address, evt.token))
     // await pushBatch('eth-account', events)
 }
 

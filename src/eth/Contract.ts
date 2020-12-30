@@ -91,7 +91,7 @@ export async function batchCreateContract(params: Array<Contract>) {
     let values = params.map(
         item => `('${item.address}', '${item.creater}', '${item.txHash}', '${item.logo}', '${item.precision}', '${item.source}', '${item.profiles}', '${item.prices ? item.prices.toString() : ""}', '${item.site}', '${item.name}', '${item.symbol}', '${item.height}', '${item.contractType}', '${item.content}', '${item.tags}', '${item.balance}', '${item.maxSupply}', '${item.holders}', '${item.transfers}', '${item.tabs}')`
       )
-    let query = `insert into "eth_contract" ("address", "creater", "tx_hash", "logo", "precision", "source", "profiles", "price", "site", "name", "symbol", "height", "contract_type", "content", "tags", "balance", "max_supply", "holders", "transfers", "tabs") values ${values.join(',')}`
+    let query = `insert into eth_contract (address, creater, tx_hash, logo, \`precision\`, source, profiles, price, site, name, symbol, height, contract_type, content, tags, balance, max_supply, holders, transfers, tabs) values ${values.join(',')}`
 
     await prisma.$executeRaw(query)
 }

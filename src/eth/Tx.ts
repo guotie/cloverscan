@@ -4,11 +4,12 @@ import BigNumber from 'bignumber.js'
 
 import { EthBlock } from './Block'
 import Tx from '../model/tx'
-import { e1_18 } from './utils'
+import { e1_18, zero, convertAddressFromHex64 } from './utils'
 import prisma from '../model/db'
 import EthTxEvent from './Event'
 import Contract from './Contract'
 import { BalanceEvent, updaterETHTransfer } from './Push'
+import { rejects } from 'assert'
 
 
 // 非合约调用
@@ -128,6 +129,10 @@ class EthTx implements Tx {
         if (logs.length === 1 && isTransfer(logs[0].topics)) {
             // todo 疑似 erc20, 生成 token, 推送kafka, 更新 token
             this.transferType = TxTypeToken
+            // 设置amount
+            // console.info('token transfer amount:', this.hash, logs[0].data)
+            this.amount = new BigNumber(logs[0].data)
+            this.realTo = convertAddressFromHex64(logs[0].topics[2])
         }
 
         return events
@@ -163,7 +168,7 @@ class EthTx implements Tx {
 
     // 是否是以太转账交易
     isEthTransfer() {
-        return this.input === '0x' && this.to !== ''
+        return this.value.comparedTo(zero) > 0 && this.to !== ''
     }
 }
 
@@ -205,6 +210,10 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
     let balanceEvents: Array<BalanceEvent> = []
     let contracts: Array<Contract> = []
     
+    // console.log('txList:', txs.length)
+    if (txs.length === 0) {
+        return { txList, events, balanceEvents, contracts }
+    }
     await new Promise(function(resolve, reject) {
         let counter  = 0
         for (let i = txs.length - 1; i >= 0; i --) {
@@ -221,10 +230,12 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                 } else {
                     // todo 重新获取?
                     console.warn('getTransaction failed:', txHash)
+                    reject(err)
                 }
                 counter ++
                 // console.log('tx:', counter)
                 if (counter === txs.length) {
+                    // console.log('eth transfer events:', balanceEvents.length)
                     resolve(txList);
                 }
             }))
@@ -240,7 +251,7 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
     let totalFee = new BigNumber(0)
     batch = new provider.BatchRequest();
     // gasUsed
-    await new Promise(function(resolve) {
+    await new Promise(function(resolve, reject) {
         let counter = 0, total = 0
         for (let i = 0; i < txList.length; i ++) {
             if (txList[i] && txList[i].input !== '0x') {
@@ -251,34 +262,47 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                     // console.log(err, data)
                     if (!err) {
                         let contract = txList[i].fillReceipt(data)
-                        if (!contract) {
+                        if (contract) {
                             // @ts-ignore
                             contracts.push(contract)
                         }
 
                         if (data.logs.length > 0) {
                             // 提取日志
-                            let evt = txList[i].doTxEvents(data.logs)
-                            events.push(...evt)
+                            let evts = txList[i].doTxEvents(data.logs)
+                            events.push(...evts)
+                            // 是否触发 balance 更新
+                            evts.forEach(evt => {
+                                let be = evt.getBalanceEvent()
+                                if (be) {
+                                    balanceEvents.push(...be)
+                                }
+                            })
                         }
                     } else {
                         // todo 重新获取?
                         console.warn('getTransactionReceipt failed:', txHash)
+                        reject(err)
                     }
                     counter ++
                     if (counter === total) {
-                        resolve(txList);
+                        resolve('');
                     }
                 }))
             }
         }
 
-        batch.execute()
+        if (total > 0) {
+            batch.execute()
+        } else {
+            resolve('')
+        }
     })
 
     for (let i = 0; i < txList.length; i ++) {
         // console.log('tx fee', i, txList[i].fee.toString())
         totalFee = totalFee.plus(txList[i].fee)
+
     }
 
     block.fee = totalFee.div(e1_18)
@@ -295,7 +319,7 @@ async function batchCreateEthTx(txList: Array<EthTx>) {
     let values = txList.map(
         tx => `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${tx.amount.toString()}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${tx.input}', '${tx.interact}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
       )
-    let query = `insert into "eth_tx" ("hash", "block", "pos", "status", "timestamp", "fee", "value", "amount", "from", "to", "real_to", "nonce", "gas_price", "gas_limit", "gas_used", "input_data", "interact", "transfer_type", "is_contract_call", "contract_created") values ${values.join(',')}`
+    let query = `insert into eth_tx (hash, block, pos, status, timestamp, fee, value, amount, \`from\`, \`to\`, real_to, nonce, gas_price, gas_limit, gas_used, input_data, interact, transfer_type, is_contract_call, contract_created) values ${values.join(',')}`
 
     await prisma.$executeRaw(query)
 }

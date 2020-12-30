@@ -1,6 +1,7 @@
 import prisma from '../model/db'
 
 // UncleBlock 叔块信息
+// 例如: 11546811 包含两个叔块
 class UncleBlock {
     id: number
     height: number
@@ -37,7 +38,7 @@ export async function batchCreateUncleBlock(uncles: Array<UncleBlock>) {
     let values = uncles.map(
         uncle => `('${uncle.height}', '${uncle.hash}', '${uncle.uncle}', '${uncle.timestamp}')`
       )
-    let query = `insert into "eth_block_uncle" ("height", "hash", "uncle", "timestamp") values ${values.join(',')}`
+    let query = `insert into eth_block_uncle (height, hash, uncle, timestamp) values ${values.join(',')}`
 
     await prisma.$executeRaw(query)
 }

@@ -50,7 +50,7 @@ class EthTxEvent {
         this.blockNumber = log.blockNumber
         this.transactionHash = log.transactionHash
         this.txIndex = log.transactionIndex
-        this.logId = log.logId
+        this.logId = log.id
 
         this.setEventName()
     }
@@ -117,7 +117,7 @@ export async function batchCreateEthTxEvent(txList: Array<EthTxEvent>) {
     let values = txList.map(
         tx => `('${tx.name}', '${tx.from}', '${tx.to}', '${tx.address}', '${tx.data}', '${tx.topic0}', '${tx.topic1}', '${tx.topic2}', '${tx.topic3}', '${tx.logIndex}', '${tx.blockHash}', '${tx.blockNumber}', '${tx.txIndex}', '${tx.transactionHash}', '${tx.logId}')`
       )
-    let query = `insert into "eth_tx_logs" ("name", "from", "to", "address", "data", "topic0", "topic1", "topic2", "topic3", "log_index", "block_hash", "block_number", "tx_index", "tx_hash", "log_id") values ${values.join(',')}`
+    let query = `insert into eth_tx_logs (name, \`from\`, \`to\`, address, data, topic0, topic1, topic2, topic3, log_index, block_hash, block_number, tx_index, tx_hash, log_id) values ${values.join(',')}`
 
     await prisma.$executeRaw(query)
 }
