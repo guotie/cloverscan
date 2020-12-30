@@ -10,11 +10,9 @@ import { pushKafka, pushBatch } from '../kafka/push'
 //
 export const BalanceEventMine               = 'mine'
 export const BalanceEventETHTx              = 'eth-tx'
-export const BalanceEventTokenTransfer      = 'token-transfer'
-export const BalanceEventTokenBurn          = 'token-burn'
-export const BalanceEventTokenMint          = 'token-mint'
-export const BalanceEventTokenSend          = 'token-send'
-export const BalanceEventTokenTransferFrom  = 'token-transferfrom'
+export const BalanceEventTokenTransfer      = 'token-transfer'  // transfer, transferFrom, mint, burn
+export const BalanceEventTokenDeposit       = 'token-deposit'   // deposit
+export const BalanceEventTokenWithdraw      = 'token-withdraw'  // withdraw
 
 class BalanceEvent {
     address: string
@@ -29,13 +27,15 @@ class BalanceEvent {
 
     // 推送一条数据
     async push() {
-        await pushKafka('account-balance', this)
+        await pushKafka('eth-account', this)
     }
 }
 
 // 批量推送
 async function pushEvents(events: Array<BalanceEvent>) {
-    await pushBatch('eth-account', events)
+    console.info('kafka balance events:', events.length)
+    events.forEach(evt => console.info('    evt: action: %s address: %s token: %s', evt.action, evt.address, evt.token))
+    // await pushBatch('eth-account', events)
 }
 
 // 产块地址eth更新

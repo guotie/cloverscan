@@ -20,18 +20,6 @@ const TxStatusConfirmed = 0
 const TxStatusConfirming = 1
 const TxStatusPending = 2
 
-// todo: mint send burn transferFrom withdraw deposit ....
-const famousEvents: {[index: string]: string} = {
-    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef': 'Transfer (index_topic_1 address src, index_topic_2 address dst, uint256 wad)',
-    '0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c': 'Deposit (index_topic_1 address dst, uint256 wad)',
-}
-
-function getEventName(evt: EthTxEvent) {
-    let name = famousEvents[evt.topic0]
-    if (name) {
-        evt.name = name
-    }
-}
 
 // event 是否是 transfer
 function isTransfer(topics: string[]): boolean {
@@ -41,6 +29,7 @@ function isTransfer(topics: string[]): boolean {
     return topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 }
 
+// Eth transaction
 class EthTx implements Tx {
     hash: string
     block: number
@@ -97,6 +86,7 @@ class EthTx implements Tx {
         this.txLogs = []
     }
 
+    // 手续费计算
     static calcTxFee(price: BigNumber, gas: string | number) {
         let gasPrice = new BigNumber(price)
             , gasUsed = new BigNumber(gas)     // tx.gas 是 gasLimit
@@ -106,7 +96,9 @@ class EthTx implements Tx {
         return gasReal
     }
 
-    // 获取gasUsed?
+    // 获取创建合约地址
+    // 获取gasUsed, 计算实际手续费
+    // 获取合约事件
     fillReceipt(receipt: TransactionReceipt)  {
         this.gasUsed = receipt.gasUsed
         this.fee = EthTx.calcTxFee(this.gasPrice, this.gasUsed)
@@ -129,14 +121,12 @@ class EthTx implements Tx {
         let events = []
         for (let i = 0; i < logs.length; i ++) {
             let evt = new EthTxEvent(this.from, this.to, logs[i])
-            // name
-            getEventName(evt)
-
+            // set name
             events.push(evt)
         }
 
         if (logs.length === 1 && isTransfer(logs[0].topics)) {
-            // todo 疑似 erc20, 生成 token
+            // todo 疑似 erc20, 生成 token, 推送kafka, 更新 token
             this.transferType = TxTypeToken
         }
 

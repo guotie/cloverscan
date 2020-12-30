@@ -1,4 +1,20 @@
 import prisma from "../model/db"
+import { BalanceEvent, BalanceEventTokenDeposit, BalanceEventTokenTransfer, BalanceEventTokenWithdraw } from "./Push"
+
+export const EventKecekTransfer = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+export const EventKecekDeposit  = '0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c'  // weth deposit
+export const EventKecekWithdraw = '0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65'  // weth deposit
+
+// ERC20中transferFrom, mint, burn 全部都是transfer事件
+// todo: withdraw deposit ....
+const famousEvents: {[index: string]: string} = {
+    // transfer
+    EventKecekTransfer: 'Transfer (index_topic_1 address src, index_topic_2 address dst, uint256 wad)',
+    // deposit
+    EventKecekDeposit: 'Deposit (index_topic_1 address dst, uint256 wad)',
+    // withdraw
+    EventKecekWithdraw: 'Withdrawal (index_topic_1 address src, uint256 wad)'
+}
 
 class EthTxEvent {
     id: number
@@ -35,6 +51,8 @@ class EthTxEvent {
         this.transactionHash = log.transactionHash
         this.txIndex = log.transactionIndex
         this.logId = log.logId
+
+        this.setEventName()
     }
 
     // save to db
@@ -58,6 +76,35 @@ class EthTxEvent {
                 log_id: this.logId,
             }
         })
+    }
+
+    // 分析事件, 是否触发资产变更, 如果触发了资产变更, 推送给kafka
+    getBalanceEvent(): Array<BalanceEvent> | null {
+        switch (this.topic0) {
+        case EventKecekTransfer:
+            // Transfer (index_topic_1 address src, index_topic_2 address dst, uint256 wad)
+            return [
+                new BalanceEvent(this.topic1, BalanceEventTokenTransfer, this.address),
+                new BalanceEvent(this.topic2, BalanceEventTokenTransfer, this.address),
+            ]
+        
+        case EventKecekDeposit:
+            // address: 充币合约的token, 通常是erc20
+            return [new BalanceEvent(this.topic1, BalanceEventTokenDeposit, this.address)]
+
+        case EventKecekWithdraw:
+            // address: 充币合约的token, 通常是erc20
+            return [new BalanceEvent(this.topic1, BalanceEventTokenWithdraw, this.address)]
+        } 
+
+        return null
+    }
+    
+    setEventName() {
+        let name = famousEvents[this.topic0]
+        if (name) {
+            this.name = name
+        }
     }
 }
 
