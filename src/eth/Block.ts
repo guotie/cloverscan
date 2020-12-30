@@ -4,10 +4,11 @@ import Web3 from 'web3'
 
 import {Block as BaseBlock } from '../model/block'
 import prisma from '../model/db'
-import UncleBlock, { batchCreateUncleBlock } from './UncleBlock'
-import { batchCreateEthTx, doTransactionList } from './Tx'
-import { batchCreateEthTxEvent } from './Event'
+import UncleBlock, { batchCreateUncleBlock, cleanUncleBlockByHeight } from './UncleBlock'
+import { batchCreateEthTx, cleanEthTxByHeight, doTransactionList } from './Tx'
+import { batchCreateEthTxEvent, cleanEthTxEventsByHeight } from './Event'
 import { BalanceEvent, updaterMinerBalance, pushEvents } from './Push'
+import { batchCreateContract, cleanEthContractByHeight } from './Contract'
 
 const BlockchainEthereum = 'Ethereum'
 const BlockchainNetwork = 'Mainnet'
@@ -169,7 +170,7 @@ async function handleBlock(provider: Web3, height: number) {
     let eb = new EthBlock(block)
     let uncles: Array<UncleBlock> = []
 
-    let { txList, events, balanceEvents } = await doTransactionList(provider, eb, block.transactions)
+    let { txList, events, contracts, balanceEvents } = await doTransactionList(provider, eb, block.transactions)
 
     if (block.uncles.length > 0) {
         uncles = eb.doUncleBlocks(block.uncles)
@@ -184,20 +185,39 @@ async function handleBlock(provider: Web3, height: number) {
         batchCreateEthTx(txList),       // 交易
         batchCreateEthTxEvent(events),  // tx logs
         batchCreateUncleBlock(uncles),  // 叔块
+        batchCreateContract(contracts), // 合约创建
         eb.createBlock(),               // 块
     ]).then(() => {
+        // 推送需要新建或更新的账号资产信息
         pushEvents(kafkaEvents)
+        // todo 保存扫块状态 zookeeper
+        console.info('scan block %d done', height)
     }).catch(err => {
+        console.warn('scan block %d failed:', height, err)
         // todo 异常处理流程
         // 删除叔块
     })
-    // txList.forEach(tx => tx.create())
-    // events.forEach(evt => evt.create())
-    // eb.createBlock()
+}
+
+// 删除块, 用于重新扫块的准备
+async function cleanBlock(height: number) {
+    Promise.all([
+        cleanBlockByHeight(height),
+        cleanEthContractByHeight(height),
+        cleanUncleBlockByHeight(height),
+        cleanEthTxEventsByHeight(height),
+        cleanEthTxByHeight(height)
+    ])
+}
+
+// delete all block db: 
+async function cleanBlockByHeight(height: number) {
+    await prisma.$executeRaw(`delete from eth_block where block = ${height}`)
 }
 
 export {
     EthBlock,
     getBlock,
     handleBlock,
+    cleanBlockByHeight,
 }

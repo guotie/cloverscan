@@ -213,6 +213,7 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
     let txList: Array<EthTx> = []
     let events: Array<EthTxEvent> = []
     let balanceEvents: Array<BalanceEvent> = []
+    let contracts: Array<Contract> = []
     
     await new Promise(function(resolve, reject) {
         let counter  = 0
@@ -259,7 +260,11 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                 batch.add(provider.eth.getTransactionReceipt.request(txHash, (err, data) => {
                     // console.log(err, data)
                     if (!err) {
-                        txList[i].fillReceipt(data)
+                        let contract = txList[i].fillReceipt(data)
+                        if (!contract) {
+                            // @ts-ignore
+                            contracts.push(contract)
+                        }
 
                         if (data.logs.length > 0) {
                             // 提取日志
@@ -305,10 +310,15 @@ async function batchCreateEthTx(txList: Array<EthTx>) {
     await prisma.$executeRaw(query)
 }
 
+async function cleanEthTxByHeight(height: number) {
+    await prisma.$executeRaw(`delete from eth_tx where block = ${height}`)
+}
+
 export {
     EthTx,
     getEthTx,
     batchCreateEthTx,
     doTransactionList,
     createFromTxReceipt,
+    cleanEthTxByHeight,
 }

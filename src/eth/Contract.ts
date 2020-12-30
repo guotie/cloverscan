@@ -84,12 +84,20 @@ class Contract {
 
 // 批量入库 Contract
 export async function batchCreateContract(params: Array<Contract>) {
+    if (params.length === 0) {
+        return
+    }
+
     let values = params.map(
         item => `('${item.address}', '${item.creater}', '${item.txHash}', '${item.logo}', '${item.precision}', '${item.source}', '${item.profiles}', '${item.prices ? item.prices.toString() : ""}', '${item.site}', '${item.name}', '${item.symbol}', '${item.height}', '${item.contractType}', '${item.content}', '${item.tags}', '${item.balance}', '${item.maxSupply}', '${item.holders}', '${item.transfers}', '${item.tabs}')`
       )
     let query = `insert into "eth_contract" ("address", "creater", "tx_hash", "logo", "precision", "source", "profiles", "price", "site", "name", "symbol", "height", "contract_type", "content", "tags", "balance", "max_supply", "holders", "transfers", "tabs") values ${values.join(',')}`
 
     await prisma.$executeRaw(query)
+}
+
+export async function cleanEthContractByHeight(height: number) {
+    await prisma.$executeRaw(`delete from eth_contract where height = ${height}`)
 }
 
 export default Contract

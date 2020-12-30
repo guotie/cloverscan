@@ -33,13 +33,18 @@ export async function batchCreateUncleBlock(uncles: Array<UncleBlock>) {
     if (uncles.length === 0) {
         return
     }
-    
+
     let values = uncles.map(
         uncle => `('${uncle.height}', '${uncle.hash}', '${uncle.uncle}', '${uncle.timestamp}')`
       )
     let query = `insert into "eth_block_uncle" ("height", "hash", "uncle", "timestamp") values ${values.join(',')}`
 
     await prisma.$executeRaw(query)
+}
+
+// 删除叔块
+export async function cleanUncleBlockByHeight(height: number) {
+    await prisma.$executeRaw(`delete from eth_block_uncle where height = ${height}`)
 }
 
 export default UncleBlock
