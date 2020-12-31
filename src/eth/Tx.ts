@@ -320,9 +320,9 @@ async function batchCreateEthTx(txList: Array<EthTx>) {
     let values = txList.map(
         tx => {
             let input = tx.input
-            if (input && input.length >= 1000) {
+            if (input && input.length >= 65530) {
                 console.warn('tx %s input too long: %s', tx.hash, tx.input.length)
-                input = input.slice(0, 1000)
+                input = input.slice(0, 65530)
             }
             return `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${tx.amount.toString()}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${input}', '${tx.interact ? 1 : 0}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
         }

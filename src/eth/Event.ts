@@ -115,7 +115,14 @@ export async function batchCreateEthTxEvent(txList: Array<EthTxEvent>) {
     }
 
     let values = txList.map(
-        tx => `('${tx.name}', '${tx.from}', '${tx.to}', '${tx.address}', '${tx.data}', '${tx.topic0}', '${tx.topic1}', '${tx.topic2}', '${tx.topic3}', '${tx.logIndex}', '${tx.blockHash}', '${tx.blockNumber}', '${tx.txIndex}', '${tx.transactionHash}', '${tx.logId}')`
+        tx => {
+            let data = tx.data
+            if (data && data.length > 65530) {
+                console.warn('tx %s event data too long: %d', tx.transactionHash, data.length)
+                data = data.slice(0, 65530)
+            }
+            return `('${tx.name}', '${tx.from}', '${tx.to}', '${tx.address}', '${data}', '${tx.topic0}', '${tx.topic1}', '${tx.topic2}', '${tx.topic3}', '${tx.logIndex}', '${tx.blockHash}', '${tx.blockNumber}', '${tx.txIndex}', '${tx.transactionHash}', '${tx.logId}')`
+        }
       )
     let query = `insert into eth_tx_logs (name, \`from\`, \`to\`, address, data, topic0, topic1, topic2, topic3, log_index, block_hash, block_number, tx_index, tx_hash, log_id) values ${values.join(',')}`
 
