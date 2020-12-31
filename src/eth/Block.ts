@@ -166,6 +166,10 @@ async function getBlock(provider: Web3, height: number) {
     return block
 }
 
+async function getLatestBlockNumber(provider: Web3): Promise<number> {
+    return await provider.eth.getBlockNumber()
+}
+
 // 处理 block
 // 1. 余额的变动通知kafka, 由kafka的consumer程序处理
 // 2. 这里入库的是block, tx, contract create, events
@@ -255,6 +259,7 @@ export {
     EthBlock,
     getBlock,
     handleBlock,
+    getLatestBlockNumber,
     cleanBlockByHeight,
     cleanBlockDataByHeight,
 }

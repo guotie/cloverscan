@@ -14,26 +14,51 @@ export const BalanceEventTokenTransfer      = 'token-transfer'  // transfer, tra
 export const BalanceEventTokenDeposit       = 'token-deposit'   // deposit
 export const BalanceEventTokenWithdraw      = 'token-withdraw'  // withdraw
 
+export const TopicEthAccount                = 'eth-account'
+export const TopicErcToken                  = 'eth-token'
+
 class BalanceEvent {
     height?: number
     txHash?: string
     address: string
     token: string
     action: string
+    topic:  string
 
-    constructor(address: string, action: string, token = 'ETH', height?: number, txHash?: string, ) {
+    constructor(address: string, action: string, token = 'ETH', height?: number, txHash?: string) {
         this.height = height
         this.txHash = txHash
         this.address = address
         this.token = token
         this.action = action
+        this.topic = TopicEthAccount
     }
 
     // 推送一条数据
     async push() {
-        await pushKafka('eth-account', this)
+        await pushKafka(this)
     }
 }
+
+// erc20 转账事件
+class Erc20Event {
+    height?: number
+    txHash?: string
+    address: string
+    topic:   string
+
+    constructor(address: string, height?: number, txHash?: string) {
+        this.address = address
+        this.height = height
+        this.txHash = txHash
+        this.topic  = TopicErcToken
+    }
+
+    async push() {
+        await pushKafka(this)
+    }
+}
+ 
 
 // 批量推送
 async function pushEvents(events: Array<BalanceEvent>) {

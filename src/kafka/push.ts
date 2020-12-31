@@ -4,23 +4,23 @@ import kafka from './broker'
 // 推送数据到kafka
 const producer: Producer = kafka.producer()
 
-async function pushKafka(topic: string, data: any) {
+async function pushKafka(data: any) {
     await producer.connect()
     
     await producer.send({
-        topic: topic,
-        messages: [{value: data}] // todo 是否需要 stringify
+        topic: data.topic,
+        messages: [{value: JSON.stringify(data)}] // todo 是否需要 stringify
     })
 }
 
-async function pushBatch(topic: string, data: Array<any>) {
+async function pushBatch(data: Array<any>) {
     let msg = []
 
     for (let i = 0; i < data.length; i ++) {
         let v = JSON.stringify(data[i])
 
         msg.push({
-            topic: topic,
+            topic: data[i].topic,
             messages: [{
                 value: v
             }]

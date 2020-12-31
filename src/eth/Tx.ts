@@ -133,6 +133,7 @@ class EthTx implements Tx {
             // console.info('token transfer amount:', this.hash, logs[0].data)
             this.amount = new BigNumber(logs[0].data)
             this.realTo = convertAddressFromHex64(logs[0].topics[2])
+            // token更新事件
         }
 
         return events
@@ -317,7 +318,7 @@ async function batchCreateEthTx(txList: Array<EthTx>) {
     }
     
     let values = txList.map(
-        tx => `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${tx.amount.toString()}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${tx.input}', '${tx.interact}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
+        tx => `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${tx.amount.toString()}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${tx.input}', '${tx.interact ? 1 : 0}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
       )
     let query = `insert into eth_tx (hash, block, pos, status, timestamp, fee, value, amount, \`from\`, \`to\`, real_to, nonce, gas_price, gas_limit, gas_used, input_data, interact, transfer_type, is_contract_call, contract_created) values ${values.join(',')}`
 

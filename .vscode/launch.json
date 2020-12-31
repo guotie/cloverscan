@@ -5,6 +5,8 @@
     "version": "0.2.0",
     "configurations": [
 
+
+
         {
             "type": "node",
             "request": "launch",
@@ -59,6 +61,28 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}\\build\\eth\\utils.js",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "clean-eth-db",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\build\\eth\\cleanup.js",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "updater",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\build\\eth\\Updater.js",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]

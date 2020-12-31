@@ -1,30 +1,8 @@
 import provider from './Provider'
-import { EthBlock, handleBlock, cleanBlockDataByHeight } from './Block'
-import { cleanEthTxByHeight, doTransactionList, getEthTx } from './Tx'
-
-import Eth from 'web3-eth'
+import { EthBlock, handleBlock, cleanBlockDataByHeight, getLatestBlockNumber } from './Block'
+import { getEthTx } from './Tx'
 import { deleteBlockScanStatus } from './Status'
-import { fail } from 'assert'
-
-
-async function sleep(ms: number) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms)
-    })
-}
-
-function toBlock(block: Eth.BlockTransactionString): EthBlock {
-    return new EthBlock(block)
-}
-
-async function getBlock(height: number) {
-    let block = await provider.eth.getBlock(height)
-    return block
-}
-
-async function getLatestBlockNumber(): Promise<number> {
-    return await provider.eth.getBlockNumber()
-}
+import { sleep } from './utils'
 
 async function testTx() {
     // token transfer
@@ -55,6 +33,7 @@ async function doScanBlock(height: number, clean = true) {
 // start: 开始块
 // end: 结束块
 // token: 桶的大小, 最多多少个块并发扫描
+// todo: 未知问题 有些块扫描成功但没有入库, 也没有报错, 怀疑与prisma有关
 async function startScanBlock(start: number, end: number, token: number, clean = true) {
     let idles = token
         , failed: Array<number> = []
@@ -77,6 +56,24 @@ async function startScanBlock(start: number, end: number, token: number, clean =
             })
     }
 
+    if (!end) {
+        end = await getLatestBlockNumber(provider)
+        console.info('set end block to', end)
+        // get latest height
+        setInterval(async () => {
+            try {
+                let height = await getLatestBlockNumber(provider)
+                if (height > end) {
+                    end = height
+                }
+            } catch {
+                // nothing
+            }
+        }, 15000)
+    }
+
+    // todo fix
+    // 有可能出现一些块不断的失败, 导致无法继续扫块（增加失败计数）
     for (let height = start; height <= end;) {
         if (idles > 0) {
             let blockToScan: number
@@ -97,7 +94,10 @@ async function startScanBlock(start: number, end: number, token: number, clean =
         }
     }
 
-    if(failed.length > 0) {
+    // todo fix!!!
+    // 有可能出现failed队列中已经清空, 但正在执行的任务失败, 此时循环退出, 导致失败的任务无法继续执行
+    // 
+    if (failed.length > 0) {
         if (idles > 0) {
             let blockToScan: number
             // @ts-ignore
@@ -142,6 +142,7 @@ async function startScanBlock(start: number, end: number, token: number, clean =
 })()
 
 export {
-    getBlock
+    getLatestBlockNumber,
+    startScanBlock
 }
 

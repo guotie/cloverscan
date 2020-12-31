@@ -12,6 +12,11 @@ function convertAddressFromHex64(hex: string) {
     return '0x' + hex.slice(24)
 }
 
+async function sleep(ms: number) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+}
 // ;(async () => {
 //     let addr = convertAddressFromHex64('0x0000000000000000000000009c0f32795af5eb071bae6fcbc6f4a10c2d3cc7e6')
 //     console.log(addr)
@@ -22,5 +27,6 @@ function convertAddressFromHex64(hex: string) {
 export {
     zero,
     e1_18,
+    sleep,
     convertAddressFromHex64,
 }
