@@ -326,7 +326,8 @@ async function batchCreateEthTx(txList: Array<EthTx>) {
             }
             let amt = tx.amount.toString()
             if (amt.length >= 32) {
-                console.warn('tx %s input too long: %s', tx.hash, tx.input.length)
+                // tx 0x0c4ceb280baf3c51f201c0ea901e046e47af18e5bec77b2731c09066c9e25277 e77
+                console.warn('tx %s amt too long: %d %s', tx.hash, amt.length, amt)
                 amt = amt.slice(0, 32)
             }
             return `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${amt}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${input}', '${tx.interact ? 1 : 0}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
