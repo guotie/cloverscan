@@ -132,7 +132,12 @@ class EthBlock implements BaseBlock {
         // })
         // 省去一次查询的时间
         // 直接用调用 create, prisma 会先insert, 然后 select
-        let val = `('${this.hash}',${this.height},${this.timestamp},'${this.minerBy}',${this.totalTx},${this.blockSize},'${this.parentHash}','${this.nextHash}','${this.merkleHash}',${this.difficulty},0,'${this.fee.toString()}','${this.nonce}','${this.blockReward}',${this.totalDiff},'${this.uncleReward}',${this.gasUsed},'${this.gasLimit}','${this.shaUncles}','${this.extraData}','${this.txRootHash}','${this.txInternals}')`
+        let extraData = this.extraData
+        if (extraData && extraData.length > 590) {
+            extraData = extraData.slice(0, 590)
+        }
+
+        let val = `('${this.hash}',${this.height},${this.timestamp},'${this.minerBy}',${this.totalTx},${this.blockSize},'${this.parentHash}','${this.nextHash}','${this.merkleHash}',${this.difficulty},0,'${this.fee.toString()}','${this.nonce}','${this.blockReward}',${this.totalDiff},'${this.uncleReward}',${this.gasUsed},'${this.gasLimit}','${this.shaUncles}','${extraData}','${this.txRootHash}','${this.txInternals}')`
         await prisma.$executeRaw('INSERT INTO `clover`.`eth_block` (`hash`,`height`,`ts`,`miner_by`,`total_tx`,`block_size`,`parent_hash`,`next_hash`,`merkle_hash`,`difficulty`,`interval`,`fee`,`nonce`,`block_reward`,`total_diff`,`uncle_reward`,`gas_used`,`gas_limit`,`sha_uncles`,`extra_data`,`tx_root_hash`,`tx_internals`) VALUES ' + val)
 
         // return res
