@@ -122,8 +122,10 @@ async function startScanBlock(start: number, end: number, token: number, clean =
 ;(async () => {
     // let height = await getLatestBlockNumber()
     // console.log('height: ', height)
-    let start = 1, max = process.env.CONNCURRENT ? +process.env.CONNCURRENT : 100, end = 0
-    // doScanBlock(46147)
+    let start = process.env.SCAN_START_BLOCK ? +process.env.SCAN_START_BLOCK : 0
+        , end = process.env.SCAN_END_BLOCK ? +process.env.SCAN_END_BLOCK : 5000000
+        , max = process.env.CONNCURRENT ? +process.env.CONNCURRENT : 100
+    // doScanBlock(0)
     await startScanBlock(start, end, max, false)
     return
     // testTx()

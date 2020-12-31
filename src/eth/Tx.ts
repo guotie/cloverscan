@@ -324,7 +324,12 @@ async function batchCreateEthTx(txList: Array<EthTx>) {
                 console.warn('tx %s input too long: %s', tx.hash, tx.input.length)
                 input = input.slice(0, 65530)
             }
-            return `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${tx.amount.toString()}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${input}', '${tx.interact ? 1 : 0}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
+            let amt = tx.amount.toString()
+            if (amt.length >= 32) {
+                console.warn('tx %s input too long: %s', tx.hash, tx.input.length)
+                amt = amt.slice(0, 32)
+            }
+            return `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${amt}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${input}', '${tx.interact ? 1 : 0}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
         }
       )
     let query = `insert into eth_tx (hash, block, pos, status, timestamp, fee, value, amount, \`from\`, \`to\`, real_to, nonce, gas_price, gas_limit, gas_used, input_data, interact, transfer_type, is_contract_call, contract_created) values ${values.join(',')}`

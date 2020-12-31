@@ -241,7 +241,7 @@ async function handleBlock(provider: Web3, height: number) {
         return height
     })
     .catch(err => {
-        // console.warn('scan block %d failed:', height, err)
+        console.warn('save block %d failed:', height, err)
         // todo 异常处理流程
         // 删除叔块
         throw {err, height}
