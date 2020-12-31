@@ -29,7 +29,7 @@ async function checkBlockScanStatus(height: number) {
     let status = await redis.get(blockKey(height))
     // console.info('block scan status:', status)
     if (status === BlockStatusDone || status === BlockStatusScanning) {
-        return true
+        return status
     }
     await setBlockScanstatus(height, BlockStatusScanning)
     return false

@@ -10,7 +10,7 @@ import { batchCreateEthTxEvent, cleanEthTxEventsByHeight } from './Event'
 import { BalanceEvent, updaterMinerBalance, pushEvents } from './Push'
 import { batchCreateContract, cleanEthContractByHeight } from './Contract'
 import { pushKafka } from '../kafka/push'
-import { checkBlockScanStatus, setBlockScanstatusDone } from './Status'
+import { checkBlockScanStatus, setBlockScanstatusDone, BlockStatusDone } from './Status'
 
 const BlockchainEthereum = 'Ethereum'
 const BlockchainNetwork = 'Mainnet'
@@ -187,10 +187,13 @@ async function getLatestBlockNumber(provider: Web3): Promise<number> {
 //    e. 其他事件
 async function handleBlock(provider: Web3, height: number) {
     try {
-        if (await checkBlockScanStatus(height)) {
+        let status = await checkBlockScanStatus(height)
+        if (status) {
             // 已经扫描或正在扫描中
             console.warn('block %d is scanning or scanned', height)
-            return
+            if (status === BlockStatusDone) {
+                return Promise.resolve({err: 'block is scanned', height: height})
+            }
         }
     } catch (err) {
         // still continue scan block
@@ -209,7 +212,7 @@ async function handleBlock(provider: Web3, height: number) {
         contracts     = result.contracts
         balanceEvents = result.balanceEvents
     } catch (err) {
-        return {err, height}
+        return Promise.reject({err, height})
     }
 
     let uncles: Array<UncleBlock> = []
@@ -236,7 +239,8 @@ async function handleBlock(provider: Web3, height: number) {
         // 保存扫块状态 redis
         await setBlockScanstatusDone(height)
         return height
-    }).catch(err => {
+    })
+    .catch(err => {
         // console.warn('scan block %d failed:', height, err)
         // todo 异常处理流程
         // 删除叔块

@@ -1,5 +1,6 @@
 import prisma from '../model/db'
 
+import './FlushRedis'
 
 async function cleanup() {
     await prisma.$executeRaw('truncate `clover`.`eth_tx`')

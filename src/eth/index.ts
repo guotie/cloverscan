@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 import provider from './Provider'
 import { EthBlock, handleBlock, cleanBlockDataByHeight, getLatestBlockNumber } from './Block'
 import { getEthTx } from './Tx'
@@ -23,8 +25,8 @@ async function testTx() {
 async function doScanBlock(height: number, clean = true) {
     if (clean) {
         await cleanBlockDataByHeight(height)
+        await deleteBlockScanStatus(height)
     }
-    await deleteBlockScanStatus(height)
 
     return handleBlock(provider, height)
 }
@@ -39,19 +41,20 @@ async function startScanBlock(start: number, end: number, token: number, clean =
         , failed: Array<number> = []
         , working: { [index: string]: number } = {}
 
-    let scanner = (blockToScan: number) => {
+    let scanner = (blockToScan: number, redo = false) => {
         working[blockToScan + ''] = new Date().getTime()
         idles --
-        doScanBlock(blockToScan, clean)
+        doScanBlock(blockToScan, redo)
             .then(blockNumber => {
                 idles ++
                 delete working[blockNumber + '']
-                console.info('scan block %d done', blockNumber)
+                console.info('scan block %d done. idles: %d failed: %d', blockNumber, idles, failed.length)
             })
             .catch(resp => {
+                console.log('failed:', resp)
                 idles ++
                 delete working[resp.height + '']
-                console.warn('scan block %d failed:', resp.height, resp.err)
+                console.warn('scan block %d failed. idles: %d err:', resp.height, idles, resp.err)
                 failed.push(resp.height)
             })
     }
@@ -69,17 +72,19 @@ async function startScanBlock(start: number, end: number, token: number, clean =
             } catch {
                 // nothing
             }
-        }, 15000)
+        }, 15000) // 15 second
     }
 
     // todo fix
     // 有可能出现一些块不断的失败, 导致无法继续扫块（增加失败计数）
     for (let height = start; height <= end;) {
         if (idles > 0) {
-            let blockToScan: number
+            let blockToScan: number, redo = clean
             if (failed.length > 0) {
                 // @ts-ignore
                 blockToScan = failed.pop()
+                // 失败的必须要清理
+                redo = true
                 console.log('re scan block', blockToScan)
             } else {
                 blockToScan = height
@@ -87,7 +92,7 @@ async function startScanBlock(start: number, end: number, token: number, clean =
                 console.log('do scan block', blockToScan)
             }
 
-            scanner(blockToScan)
+            scanner(blockToScan, redo)
         } else {
             // wait for
             await sleep(100)
@@ -117,9 +122,9 @@ async function startScanBlock(start: number, end: number, token: number, clean =
 ;(async () => {
     // let height = await getLatestBlockNumber()
     // console.log('height: ', height)
-    let start = 10000000, max = 10000
+    let start = 1, max = 100, end = 0
     // doScanBlock(46147)
-    await startScanBlock(start, start + max, 20, false)
+    await startScanBlock(start, end, max, false)
     return
     // testTx()
     /*

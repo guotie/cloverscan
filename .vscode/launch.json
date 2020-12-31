@@ -5,14 +5,16 @@
     "version": "0.2.0",
     "configurations": [
 
-
-
         {
             "type": "node",
             "request": "launch",
             "name": "eth",
             "skipFiles": [
                 "<node_internals>/**"
+            ],
+            "runtimeArgs": [
+                "-r",
+                "dotenv/config"
             ],
             "program": "${workspaceFolder}\\build\\eth\\index.js",
             "outFiles": [
@@ -83,6 +85,17 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}\\build\\eth\\Updater.js",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "flush-redis",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\build\\eth\\FlushRedis.js",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]
