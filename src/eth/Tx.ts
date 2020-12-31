@@ -230,7 +230,7 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                     }
                 } else {
                     // todo 重新获取?
-                    console.warn('getTransaction failed:', txHash)
+                    console.warn('getTransaction failed:', block.height, txHash)
                     reject(err)
                 }
                 counter ++
@@ -282,7 +282,7 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                         }
                     } else {
                         // todo 重新获取?
-                        console.warn('getTransactionReceipt failed:', txHash)
+                        console.warn('getTransactionReceipt failed:', block.height, txHash)
                         reject(err)
                     }
                     counter ++
