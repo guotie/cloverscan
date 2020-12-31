@@ -9,7 +9,7 @@ import { batchCreateEthTx, cleanEthTxByHeight, doTransactionList } from './Tx'
 import { batchCreateEthTxEvent, cleanEthTxEventsByHeight } from './Event'
 import { BalanceEvent, updaterMinerBalance, pushEvents } from './Push'
 import { batchCreateContract, cleanEthContractByHeight } from './Contract'
-import { pushKafka } from '../kafka/push'
+// import { pushKafka } from '../kafka/push'
 import { checkBlockScanStatus, setBlockScanstatusDone, BlockStatusDone } from './Status'
 
 const BlockchainEthereum = 'Ethereum'

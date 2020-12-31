@@ -4,13 +4,11 @@ import BigNumber from 'bignumber.js'
 
 import { EthBlock } from './Block'
 import Tx from '../model/tx'
-import { e1_18, zero, convertAddressFromHex64 } from './utils'
+import { e1_18, zero, convertAddressFromHex64, bnToString } from './utils'
 import prisma from '../model/db'
 import EthTxEvent from './Event'
 import Contract from './Contract'
 import { BalanceEvent, updaterETHTransfer } from './Push'
-import { rejects } from 'assert'
-
 
 // 非合约调用
 const TxTypePeer = 0
@@ -325,10 +323,11 @@ async function batchCreateEthTx(txList: Array<EthTx>) {
                 input = input.slice(0, 65530)
             }
             let amt = tx.amount.toString()
-            if (amt.length >= 32) {
+            if (amt.length >= 32) { // 数据库设置长度为 64
                 // tx 0x0c4ceb280baf3c51f201c0ea901e046e47af18e5bec77b2731c09066c9e25277 e77
-                console.warn('tx %s amt too long: %d %s', tx.hash, amt.length, amt)
-                amt = amt.slice(0, 32)
+                console.warn('tx %s amt too long: %d', tx.hash, amt.length)
+                amt = bnToString(tx.amount) // .toPrecision(32).toString()
+                // console.log(amt, tx.amount.toExponential())
             }
             return `('${tx.hash}', '${tx.block}', '${tx.pos}', '${tx.status}', '${tx.timestamp}', '${tx.fee.toString()}', '${tx.value.toString()}', '${amt}', '${tx.from}', '${tx.to}', '${tx.realTo}', '${tx.nonce}', '${tx.gasPrice.toString()}', '${tx.gasLimit}', '${tx.gasUsed}', '${input}', '${tx.interact ? 1 : 0}', '${tx.transferType}', '${tx.isContractCall}', '${tx.contractCreated}')`
         }

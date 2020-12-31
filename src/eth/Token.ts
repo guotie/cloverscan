@@ -1,5 +1,5 @@
 import BigNumber from "bignumber.js"
-import prisma from "../model/db"
+// import prisma from "../model/db"
 
 class Token {
     id: number

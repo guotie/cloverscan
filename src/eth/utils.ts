@@ -19,19 +19,28 @@ async function sleep(ms: number) {
         setTimeout(resolve, ms)
     })
 }
+
+// BigNumber截断长度
+function bnToString(bn: BigNumber, p = 32) {
+    return bn.toPrecision(p).toString()
+}
+
 ;(async () => {
 //     let addr = convertAddressFromHex64('0x0000000000000000000000009c0f32795af5eb071bae6fcbc6f4a10c2d3cc7e6')
 //     console.log(addr)
 //     let addr2 = convertAddressFromHex64('0000000000000000000000009c0f32795af5eb071bae6fcbc6f4a10c2d3cc7e6')
 //     console.log(addr2)
-    let a = new BigNumber('12345678901234567890')
-    console.log(a.toString())
-    console.log(a.toString())
+    // let a = new BigNumber('15792089237316195423570985008687907853269984665640564039457584007913129635936')
+    // BigNumber.set({EXPONENTIAL_AT: 32})
+    
+    // console.log(a.toPrecision(32).toString())
+    // console.log(a.toString())
 })()
 
 export {
     zero,
     e1_18,
     sleep,
+    bnToString,
     convertAddressFromHex64,
 }
