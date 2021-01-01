@@ -7,7 +7,7 @@ import prisma from '../model/db'
 import UncleBlock, { batchCreateUncleBlock, cleanUncleBlockByHeight } from './UncleBlock'
 import { batchCreateEthTx, cleanEthTxByHeight, doTransactionList } from './Tx'
 import { batchCreateEthTxEvent, cleanEthTxEventsByHeight } from './Event'
-import { BalanceEvent, updaterMinerBalance, pushEvents } from './Push'
+import { BalanceEvent, updaterMinerBalance, pushEvents, IPushEvent } from './Push'
 import { batchCreateContract, cleanEthContractByHeight } from './Contract'
 // import { pushKafka } from '../kafka/push'
 import { checkBlockScanStatus, setBlockScanstatusDone, BlockStatusDone } from './Status'
@@ -221,7 +221,7 @@ async function handleBlock(provider: Web3, height: number) {
         // todo 叔块奖励 balance 更新事件
     }
 
-    let kafkaEvents: Array<BalanceEvent> = []
+    let kafkaEvents: Array<IPushEvent> = []
     kafkaEvents.push(updaterMinerBalance(block.miner))
     kafkaEvents.push(...balanceEvents)
     // await pushEvents(balanceEvents)

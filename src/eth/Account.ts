@@ -1,6 +1,8 @@
 import BigNumber from "bignumber.js"
+import { Prisma } from '@prisma/client'
 
 import prisma from '../model/db'
+import { bnToString } from "./utils"
 
 class Account {
     id: number
@@ -36,16 +38,29 @@ class Account {
     }
 
     // 更新余额
-    async updateAccountBalance(address: string, tokenAddr: string, balance: BigNumber | string, blockNumber?: number) {
-        await prisma.eth_account.updateMany({
+    static async upsertAccountBalance(address: string, tokenAddr: string, balance: BigNumber, blockNumber?: number) {
+        let data: Prisma.eth_accountUpdateInput = {}
+
+        if (blockNumber) {
+            data.last_update = blockNumber
+        }
+        let sbal = balance.toString()
+        if (sbal.length > 30) {
+            sbal = bnToString(balance)
+        }
+        data.balance = sbal
+        let rows = await prisma.eth_account.updateMany({
             where: {
                 address: address,
-                token_address: this.tokenAddress
+                token_address: tokenAddr
             },
-            data: {
-                balance: balance.toString()
-            }
+            data: data
         })
+        if (rows.count > 0) {
+            return
+        }
+        // insert
+        await prisma.$executeRaw(`insert into eth_account (address,balance,token_address,last_update) values ('${address}','${tokenAddr}','${sbal}',${blockNumber})`)
     }
 }
 

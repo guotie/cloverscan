@@ -25,6 +25,14 @@ function bnToString(bn: BigNumber, p = 32) {
     return bn.toPrecision(p).toString()
 }
 
+function toBn(n: string, decimals: number) {
+    let bn = new BigNumber(n)
+    for (let i = 0; i < decimals; i ++) {
+        bn = bn.div(10)
+    }
+    return bn
+}
+
 ;(async () => {
 //     let addr = convertAddressFromHex64('0x0000000000000000000000009c0f32795af5eb071bae6fcbc6f4a10c2d3cc7e6')
 //     console.log(addr)
@@ -41,6 +49,7 @@ export {
     zero,
     e1_18,
     sleep,
+    toBn,
     bnToString,
     convertAddressFromHex64,
 }

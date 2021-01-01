@@ -7,13 +7,14 @@ import Tx from '../model/tx'
 import { e1_18, zero, convertAddressFromHex64, bnToString } from './utils'
 import prisma from '../model/db'
 import EthTxEvent from './Event'
-import Contract from './Contract'
-import { BalanceEvent, updaterETHTransfer } from './Push'
+import EthContract from './Contract'
+import { BalanceEvent, updaterETHTransfer, Erc20Event, IPushEvent } from './Push'
 
 // 非合约调用
-const TxTypePeer = 0
-const TxTypeToken = 1
-const TxTypeContract = 2
+const TxTypePeer = 0              // 普通交易
+const TxTypeToken = 1             // token转账
+const TxTypeContractCall   = 2    // 合约调用
+const TxTypeCreateContract = 3    // 创建
 
 const TxStatusConfirmed = 0
 const TxStatusConfirming = 1
@@ -68,6 +69,11 @@ class EthTx implements Tx {
         this.input = tx.input
         this.interact = false
         this.transferType = TxTypePeer
+        if (!tx.to) {
+            this.transferType = TxTypeCreateContract  // 创建合约
+        } else if (tx.input !== '0x') {
+            this.transferType = TxTypeContractCall // 在doEventLogs中进一步分析是否是token transfer
+        }
         // this.transferType = timestamp
         this.status = TxStatusConfirmed
         this.fee = new BigNumber(0)
@@ -108,16 +114,16 @@ class EthTx implements Tx {
             // 合约创建的input太长, 单独放在合约的表中, 这里把input截断
             // todo 合约创建
             console.info('contract created: creater: %s contract: %s', this.from, this.contractCreated)
-            let contract = new Contract(this.contractCreated, this.from, this.hash, '', '', this.block)
+            let contract = new EthContract(this.contractCreated, this.from, this.hash, '', '', this.block)
             this.input = ''
             return contract
         }
     }
 
     // 处理log
-    doTxEvents(logs: Array<any>): Array<EthTxEvent> {
+    doTxEvents(logs: Array<any>): { events: Array<EthTxEvent>, tokenEvent: Erc20Event | null } {
         // todo 很多工作需要进一步细化
-        let events = []
+        let events = [], tokenEvent = null
         for (let i = 0; i < logs.length; i ++) {
             let evt = new EthTxEvent(this.from, this.to, logs[i])
             // set name
@@ -132,9 +138,10 @@ class EthTx implements Tx {
             this.amount = new BigNumber(logs[0].data)
             this.realTo = convertAddressFromHex64(logs[0].topics[2])
             // token更新事件
+            tokenEvent = new Erc20Event(this.to, this.block, this.hash, this.from)
         }
 
-        return events
+        return { events, tokenEvent }
     }
 
     // insert to db
@@ -197,8 +204,8 @@ function createFromTxReceipt(timestamp: number, tx: Transaction, receipt?: Trans
 async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<string>): Promise<{
     txList: Array<EthTx>,
     events: Array<EthTxEvent>,
-    contracts: Array<Contract>,
-    balanceEvents: Array<BalanceEvent>
+    contracts: Array<EthContract>,
+    balanceEvents: Array<IPushEvent>
 }> {
     // 1. 地址
     let timestamp = block.timestamp
@@ -206,8 +213,8 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
     // for (let i = 0; i < txs.length; i ++) {
     let txList: Array<EthTx> = []
     let events: Array<EthTxEvent> = []
-    let balanceEvents: Array<BalanceEvent> = []
-    let contracts: Array<Contract> = []
+    let balanceEvents: Array<IPushEvent> = []
+    let contracts: Array<EthContract> = []
     
     // console.log('txList:', txs.length)
     if (txs.length === 0) {
@@ -269,9 +276,12 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                         if (data.logs.length > 0) {
                             // 提取日志
                             let evts = txList[i].doTxEvents(data.logs)
-                            events.push(...evts)
+                            events.push(...evts.events)
+                            if (evts.tokenEvent) {
+                                balanceEvents.push(evts.tokenEvent) // 更新token info
+                            }
                             // 是否触发 balance 更新
-                            evts.forEach(evt => {
+                            evts.events.forEach(evt => {
                                 let be = evt.getBalanceEvent()
                                 if (be) {
                                     balanceEvents.push(...be)

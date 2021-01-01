@@ -17,7 +17,12 @@ export const BalanceEventTokenWithdraw      = 'token-withdraw'  // withdraw
 export const TopicEthAccount                = 'eth-account'
 export const TopicErcToken                  = 'eth-token'
 
-class BalanceEvent {
+// 推送的消息
+interface IPushEvent {
+    topic: string
+}
+
+class BalanceEvent implements IPushEvent {
     height?: number
     txHash?: string
     address: string
@@ -40,14 +45,15 @@ class BalanceEvent {
     }
 }
 
-// erc20 转账事件
-class Erc20Event {
+// erc20 转账事件, 异步程序收到消息后, 判断是否需要更新该 token 的信息
+class Erc20Event implements IPushEvent {
     height?: number
     txHash?: string
-    address: string
+    from?: string     // 转账发起者
+    address: string   // token 地址
     topic:   string
 
-    constructor(address: string, height?: number, txHash?: string) {
+    constructor(address: string, height?: number, txHash?: string, from?: string) {
         this.address = address
         this.height = height
         this.txHash = txHash
@@ -61,7 +67,7 @@ class Erc20Event {
  
 
 // 批量推送
-async function pushEvents(events: Array<BalanceEvent>) {
+async function pushEvents(events: Array<IPushEvent>) {
     console.info('kafka balance events:', events.length)
     // events.forEach(evt => console.info('    evt: action: %s address: %s token: %s', evt.action, evt.address, evt.token))
     // await pushBatch('eth-account', events)
@@ -84,6 +90,8 @@ function updateContractEvent(from: string, to: string, token: string, action: st
 
 export {
     pushEvents,
+    IPushEvent,
+    Erc20Event,
     BalanceEvent,
     updaterMinerBalance,
     updaterETHTransfer,

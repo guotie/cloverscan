@@ -84,7 +84,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\build\\eth\\Updater.js",
+            "program": "${workspaceFolder}\\build\\eth\\Updater.test.js",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]

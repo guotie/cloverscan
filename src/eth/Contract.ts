@@ -1,11 +1,14 @@
 import BigNumber from "bignumber.js"
 import prisma from "../model/db"
 
-export const ContractTypeERC20 = 'ERC20'
-export const ContractTypeERC721 = 'ERC721'
+import { Prisma } from '@prisma/client'
+import { bnToString } from "./utils"
+
+export const ContractTypeERC20   = 'ERC20'
+export const ContractTypeERC721  = 'ERC721'
 export const ContractTypeERC1155 = 'ERC1155'
 
-class Contract {
+class EthContract {
     id: number
     address: string
     creater: string
@@ -54,7 +57,7 @@ class Contract {
     }
 
     async create() {
-        prisma.eth_contract.create({
+        await prisma.eth_contract.create({
             data: {
                 address: this.address,
                 creater: this.creater,
@@ -80,10 +83,45 @@ class Contract {
             }
         })
     }
+
+    // 根据地址查找合约
+    static async getContractInfoByAddress(address: string) {
+        let rows = await prisma.eth_contract.findMany({
+            where: { address: address}
+        })
+        if (rows.length === 0) {
+            return null
+        }
+        if (rows.length > 1) {
+            console.warn('found more than 1 Contract by address %s: %d', address, rows.length)
+        }
+        return rows[0]
+    }
+
+    static async updateContractInfoByAddress(address: string, args: any) {
+        let data: Prisma.eth_contractUpdateManyMutationInput = {}
+
+        if (args.name) { data.name = args.name }
+        if (args.symbol) { data.symbol = args.symbol }
+        if (args.decimals) { data.precision = args.decimals }
+        if (args.maxSupply) {
+            let ms = args.maxSupply.toString()
+            if (ms.length > 30) {
+                ms = bnToString(args.maxSupply, 30)
+            }
+            data.max_supply = ms
+        }
+        if (args.contractType) { data.contract_type = args.contractType}
+
+        await prisma.eth_contract.updateMany({
+            where: { address: address},
+            data: data
+        })
+    }
 }
 
 // 批量入库 Contract
-export async function batchCreateContract(params: Array<Contract>) {
+export async function batchCreateContract(params: Array<EthContract>) {
     if (params.length === 0) {
         return
     }
@@ -100,4 +138,4 @@ export async function cleanEthContractByHeight(height: number) {
     await prisma.$executeRaw(`delete from eth_contract where height = ${height}`)
 }
 
-export default Contract
+export default EthContract
