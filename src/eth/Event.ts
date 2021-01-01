@@ -1,5 +1,6 @@
 import prisma from "../model/db"
 import { BalanceEvent, BalanceEventTokenDeposit, BalanceEventTokenTransfer, BalanceEventTokenWithdraw } from "./Push"
+import { convertAddressFromHex64 } from './utils'
 
 export const EventKecekTransfer = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 export const EventKecekDeposit  = '0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c'  // weth deposit
@@ -83,23 +84,24 @@ class EthTxEvent {
         switch (this.topic0) {
         case EventKecekTransfer:
             // Transfer (index_topic_1 address src, index_topic_2 address dst, uint256 wad)
+            let src = convertAddressFromHex64(this.topic1), dst = convertAddressFromHex64(this.topic2)
             return [
-                new BalanceEvent(this.topic1, BalanceEventTokenTransfer, this.address),
-                new BalanceEvent(this.topic2, BalanceEventTokenTransfer, this.address),
+                new BalanceEvent(src, BalanceEventTokenTransfer, this.address),
+                new BalanceEvent(dst, BalanceEventTokenTransfer, this.address),
             ]
         
         case EventKecekDeposit:
             // address: 充币合约的token, 通常是erc20
-            return [new BalanceEvent(this.topic1, BalanceEventTokenDeposit, this.address)]
+            return [new BalanceEvent(convertAddressFromHex64(this.topic1), BalanceEventTokenDeposit, this.address)]
 
         case EventKecekWithdraw:
             // address: 充币合约的token, 通常是erc20
-            return [new BalanceEvent(this.topic1, BalanceEventTokenWithdraw, this.address)]
+            return [new BalanceEvent(convertAddressFromHex64(this.topic1), BalanceEventTokenWithdraw, this.address)]
         } 
 
         return null
     }
-    
+
     setEventName() {
         let name = famousEvents[this.topic0]
         if (name) {

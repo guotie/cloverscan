@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
 
+
         {
             "type": "node",
             "request": "launch",
@@ -96,6 +97,17 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}\\build\\eth\\FlushRedis.js",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "syncer",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\build\\eth\\Sync.js",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]

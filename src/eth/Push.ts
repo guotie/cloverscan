@@ -70,7 +70,7 @@ class Erc20Event implements IPushEvent {
 async function pushEvents(events: Array<IPushEvent>) {
     console.info('kafka balance events:', events.length)
     // events.forEach(evt => console.info('    evt: action: %s address: %s token: %s', evt.action, evt.address, evt.token))
-    // await pushBatch('eth-account', events)
+    await pushBatch(events)
 }
 
 // 产块地址eth更新
