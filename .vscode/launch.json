@@ -7,6 +7,7 @@
 
 
 
+
         {
             "type": "node",
             "request": "launch",
@@ -82,7 +83,7 @@
         }, {
             "type": "node",
             "request": "launch",
-            "name": "updater",
+            "name": "updater-test",
             "skipFiles": [
                 "<node_internals>/**"
             ],

@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js'
 
 require('dotenv').config()
-import { getTokenInfo, getBalance, getCachedLatestBlockNumber } from './Updater'
+import { getTokenInfo, getBalance, getCachedLatestBlockNumber, batchGetInfo } from './Updater'
 import { sleep } from './utils'
 
 
@@ -42,8 +42,55 @@ async function testCacheHeight() {
     }, 20000)
 }
 
+// revert:
+
+// action:'token-transfer'
+// address:'0xbfa8307ffaadea639d49ffdc50188eeebcdefdd8'
+// height:6000001
+// token:'0xB9A824e6dC289c57fAc91c16C77E37666cCE20e5'
+// topic:'eth-account'
+// txHash:'0x8d7a206b3650092288ff099cda2c35e66aece9fb1cd9617e723f3b53849787ba'
+
+// action:'token-transfer'
+// address:'0x45969056002faf220e505bcd39fee1d1a7c8ab15'
+// height:6000001
+// token:'0xF5b0A3eFB8e8E4c201e2A935F110eAaF3FFEcb8d'
+// topic:'eth-account'
+// txHash:'0x03a717362da048252a16189736243e58b41361cba0e1a3d6b83e28f03362a8c5'
+
+async function testRevert() {
+    let ts = [
+        {
+            action: 'token-transfer',
+            address: '0xbfa8307ffaadea639d49ffdc50188eeebcdefdd8',
+            height: 6000001,
+            token: '0xB9A824e6dC289c57fAc91c16C77E37666cCE20e5',
+            topic: 'eth-account',
+            txHash: '0x8d7a206b3650092288ff099cda2c35e66aece9fb1cd9617e723f3b53849787ba'
+        },
+        {
+            action: 'token-transfer',
+            address: '0x45969056002faf220e505bcd39fee1d1a7c8ab15',
+            height: 6000001,
+            token: '0xF5b0A3eFB8e8E4c201e2A935F110eAaF3FFEcb8d',
+            topic: 'eth-account',
+            txHash: '0x03a717362da048252a16189736243e58b41361cba0e1a3d6b83e28f03362a8c5'
+        }
+    ]
+
+    // ts.forEach(async t => {
+    //     let bal = await getBalance(t.address, t.token, t.height)
+    //     console.log('tx: %s address: %s token: %s balance: %s', t.txHash, t.address, t.token, bal)
+    // })
+    ts.forEach(async t => {
+        await batchGetInfo(t.token)
+    })
+}
+
 ;(async () => {
     // getTokenInfo('')
+    testRevert()
+    return
     testCacheHeight()
     testBalace()
 })()

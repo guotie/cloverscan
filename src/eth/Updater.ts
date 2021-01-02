@@ -133,6 +133,7 @@ async function getTokenBlance(address: string, token: string, height: number, lo
     // 2. 创建token contract
     // 3. 调用contract 方法获取余额
     let balance = await tokenCont.methods.balanceOf(address).call()
+    console.log('token %s balance: %s', token, balance)
     // 4. todo 还需更新token的total supply, 因为mint burn也会发出transfer事件
     let ti = await getTokenInfo(token)
     let totalSupply = await tokenCont.methods.totalSupply().call()
@@ -232,10 +233,29 @@ async function getTokenInfo(address: string): Promise<CacheTokenInfo> {
     }
     tokenInfoCache.set(address, ti)
     let tokenCont = getTokenContractInst(address)
-    let name = await tokenCont.methods.name().call()
-    let symbol = await tokenCont.methods.symbol().call()
-    let decimals = await tokenCont.methods.decimals().call()
-    let totalsupply = await tokenCont.methods.totalSupply().call()
+    let name = ''
+    try {
+        name = await tokenCont.methods.name().call()
+    } catch (err) {}
+
+    let symbol = ''
+    try {
+        symbol = await tokenCont.methods.symbol().call()
+    } catch (err) {}
+
+    // erc721 erc165 没有 decimals 方法
+    let decimals = 0
+    try {
+        decimals = await tokenCont.methods.decimals().call()
+    } catch (err) {}
+
+    let totalsupply = 0
+    try {
+        totalsupply = await tokenCont.methods.totalSupply().call()
+    } catch (err) {
+        console.warn('get token totalsupply failed: ', err)
+    }
+
     let maxSupply = new BigNumber(totalsupply)
     console.info('contract %s name: %s symbol: %s decimals: %s totalSupply: %s', address, name, symbol, decimals, maxSupply.toString())
 
@@ -253,6 +273,46 @@ async function getTokenInfo(address: string): Promise<CacheTokenInfo> {
     return ti
 }
 
+
+async function batchGetInfo(address: string) {
+    let tokenCont = getTokenContractInst(address)
+    let name = ''
+        , symbol = ''
+        , decimals = 0
+        , totalSupply = '0'
+        , arg = { from: '0x0000000000000000000000000000000000000000' }
+    
+    let batch = new provider.BatchRequest();
+    await new Promise(function(resolve, reject) {
+        batch.add(tokenCont.methods.name().call.request(arg, (err: any, data: any) => {
+            if (err) {
+                // console.warn(err)
+                return
+            }
+            name = data
+        }))
+
+        batch.add(tokenCont.methods.symbol().call.request(arg, (err: any, data: any) => {
+            if (err) { return }
+            symbol = data
+        }))
+        batch.add(tokenCont.methods.decimals().call.request(arg, (err: any, data: any) => {
+            if (err) { return }
+            console.log('decimals:', data)
+            decimals = +data
+        }))
+
+        batch.add(tokenCont.methods.totalSupply().call.request(arg, (err: any, data: any) => {
+            if (!err) {
+                totalSupply = data
+            }
+            resolve('')
+        }))
+
+        batch.execute()
+    })
+    console.log('token %s: name=%s symbol=%s decimals=%s totalSupply=%s', address, name, symbol, decimals, totalSupply)
+}
 
 ;(async () => {
 //     let testCache = async () => {
@@ -277,4 +337,5 @@ export {
     getCachedLatestBlockNumber,
     upsertAddressBalance,
     updateTokenInfo,
+    batchGetInfo,
 }

@@ -26,18 +26,22 @@ async function handleMessage({topic, partition, message}: EachMessagePayload) {
     return
   }
   // return
-  switch (topic) {
-    case TopicEthAccount:
-      await upsertAddressBalance(val.address, val.token, val.height ?? 11550000)
-      break
+  try {
+    switch (topic) {
+      case TopicEthAccount:
+        await upsertAddressBalance(val.address, val.token, val.height ?? 11550000)
+        break
 
-    case TopicErcToken:
-      await updateTokenInfo(val.address)
-      break
+      case TopicErcToken:
+        await updateTokenInfo(val.address)
+        break
 
-    default:
-      // should never reach!!!
-      console.warn('unknown topic:', topic)
+      default:
+        // should never reach!!!
+        console.warn('unknown topic:', topic)
+    }
+  } catch (err) {
+    console.warn('handle msg %s failed: ', val, err)
   }
 }
 
