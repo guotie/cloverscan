@@ -15,7 +15,8 @@ async function getBlockScanstatus(height: number, status: string) {
 }
 // 设置扫块状态
 async function setBlockScanstatus(height: number, status: string) {
-    await redis.set(blockKey(height), status)
+    let ts = new Date().getTime()
+    await redis.set(blockKey(height), JSON.stringify({ status, ts }))
 }
 
 // 设置扫块状态为完成
@@ -25,11 +26,14 @@ async function setBlockScanstatusDone(height: number) {
 
 // 如果块正在扫或者已经扫描完成, 返回true
 // 否则设置块的状态为scanning, 返回false
-async function checkBlockScanStatus(height: number) {
-    let status = await redis.get(blockKey(height))
+async function checkBlockScanStatus(height: number, ) {
+    let res = await redis.get(blockKey(height))
     // console.info('block scan status:', status)
-    if (status === BlockStatusDone || status === BlockStatusScanning) {
-        return status
+    if (res) {
+        let status = JSON.parse(res)
+        if (status.status === BlockStatusDone || status.status === BlockStatusScanning) {
+            return status
+        }
     }
     await setBlockScanstatus(height, BlockStatusScanning)
     return false

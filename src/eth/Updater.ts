@@ -49,7 +49,7 @@ function keyBalance(address: string, token: string) {
     return address + "-" + token
 }
 
-let latestHeight = 11559149  // 
+let latestHeight = 11560000  // 
 setInterval(async () => {
     try {
         let latest = await getLatestBlockNumber(provider)
@@ -75,7 +75,12 @@ async function upsertAddressBalance(address: string, token = '', height: number)
     reentryUpSertAccount[address] = height
 
     let bal = await getBalance(address, token, height)
-    await Account.upsertAccountBalance(address, token, bal.balance)
+    if (bal.db) {
+        console.log('--------------------------------------got form cache')
+        return
+    }
+    await Account.upsertAccountBalance(address, token, bal.balance, getCachedLatestBlockNumber())
+    console.info('upsert address %s token %s balance: %s', address, token !== '' ? token : 'ETH', bal.balance.toString())
 
     bal.db = true
     balanceCache.set(key, bal)

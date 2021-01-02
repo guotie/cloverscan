@@ -38,7 +38,7 @@ class Account {
     }
 
     // 更新余额
-    static async upsertAccountBalance(address: string, tokenAddr: string, balance: BigNumber, blockNumber?: number) {
+    static async upsertAccountBalance(address: string, tokenAddr: string, balance: BigNumber, blockNumber: number) {
         let data: Prisma.eth_accountUpdateInput = {}
 
         if (blockNumber) {
@@ -60,7 +60,7 @@ class Account {
             return
         }
         // insert
-        await prisma.$executeRaw(`insert into eth_account (address,balance,token_address,last_update) values ('${address}','${tokenAddr}','${sbal}',${blockNumber})`)
+        await prisma.$executeRaw(`insert into eth_account (address,token_address,balance,last_update) values ('${address}','${tokenAddr}','${sbal}',${blockNumber})`)
     }
 }
 

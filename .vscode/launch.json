@@ -6,6 +6,7 @@
     "configurations": [
 
 
+
         {
             "type": "node",
             "request": "launch",
@@ -108,6 +109,17 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}\\build\\eth\\Sync.js",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        }, {
+            "type": "node",
+            "request": "launch",
+            "name": "tx-test",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\build\\eth\\Tx.test.js",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]

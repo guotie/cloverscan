@@ -18,8 +18,9 @@ const TxTypeCreateContract = 3    // 创建
 
 const TxStatusConfirmed = 0
 const TxStatusConfirming = 1
-const TxStatusPending = 2
-
+const TxStatusPending  = 2
+const TxStatusReplaced = 3   // 被替换
+const TxStatusFailed   = 4   // 失败
 
 // event 是否是 transfer
 function isTransfer(topics: string[]): boolean {
@@ -108,6 +109,9 @@ class EthTx implements Tx {
         this.gasUsed = receipt.gasUsed
         this.fee = EthTx.calcTxFee(this.gasPrice, this.gasUsed)
         this.txLogs = receipt.logs
+        if (!receipt.status) {
+            this.status = TxStatusFailed
+        }
 
         if (receipt.contractAddress) {
             this.contractCreated = receipt.contractAddress
@@ -176,6 +180,10 @@ class EthTx implements Tx {
     isEthTransfer() {
         return this.value.comparedTo(zero) > 0 && this.to !== ''
     }
+
+    success() {
+        return this.status === TxStatusConfirmed || this.status === TxStatusConfirming
+    }
 }
 
 async function getEthTx(provider: Web3, hash: string, timestamp: number) {
@@ -184,7 +192,8 @@ async function getEthTx(provider: Web3, hash: string, timestamp: number) {
     let ethTx = new EthTx(tx, timestamp)
     if (tx.input !== '0x') {
         let receipt = await provider.eth.getTransactionReceipt(hash)
-    // console.log(JSON.stringify(tx))
+        // console.log(JSON.stringify(tx))
+        console.log('receipt:', receipt)
         ethTx.fillReceipt(receipt)
     }
     return ethTx
@@ -231,7 +240,7 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                     let tx = new EthTx(data, timestamp)
                     txList.push(tx)
                     if (tx.isEthTransfer()) {
-                        balanceEvents.push(...updaterETHTransfer(tx.from, tx.to))
+                        balanceEvents.push(...updaterETHTransfer(tx.from, tx.to, tx.block))
                     }
                 } else {
                     // todo 重新获取?
@@ -273,7 +282,7 @@ async function doTransactionList(provider: Web3, block: EthBlock, txs: Array<str
                             contracts.push(contract)
                         }
 
-                        if (data.logs.length > 0) {
+                        if (txList[i].success()  && data.logs.length > 0) {
                             // 提取日志
                             let evts = txList[i].doTxEvents(data.logs)
                             events.push(...evts.events)

@@ -79,8 +79,8 @@ function updaterMinerBalance(miner: string) {
 }
 
 // eth转账交易(from, to)
-function updaterETHTransfer(from: string, to: string): Array<BalanceEvent> {
-    return [new BalanceEvent(from, BalanceEventETHTx), new BalanceEvent(to, BalanceEventETHTx)]
+function updaterETHTransfer(from: string, to: string, height: number): Array<BalanceEvent> {
+    return [new BalanceEvent(from, BalanceEventETHTx), new BalanceEvent(to, BalanceEventETHTx, 'ETH', height)]
 }
 
 // 合约事件

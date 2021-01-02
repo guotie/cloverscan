@@ -1,6 +1,7 @@
 import BigNumber from 'bignumber.js'
 import { BlockTransactionString } from 'web3-eth'
 import Web3 from 'web3'
+import dayjs from 'dayjs'
 
 import {Block as BaseBlock } from '../model/block'
 import prisma from '../model/db'
@@ -143,6 +144,11 @@ class EthBlock implements BaseBlock {
         // return res
     }
 
+    // 查找这个块是否已经扫描完成
+    static async getDBBlockByHeight(height: number) {
+        return await prisma.$queryRaw('SELECT id from `clover`.`eth_block` where height = ' + height)
+    }
+
     // 处理叔块
     doUncleBlocks(uncles: Array<string>): Array<UncleBlock> {
         let unclesBlock: Array<UncleBlock> = []
@@ -190,7 +196,7 @@ async function handleBlock(provider: Web3, height: number) {
         let status = await checkBlockScanStatus(height)
         if (status) {
             // 已经扫描或正在扫描中
-            console.warn('block %d is scanning or scanned', height)
+            console.warn('block %d is %s at %s', height, status.status, dayjs(status.ts).format('YYYY-MM-DD HH:mm:ss'))
             if (status === BlockStatusDone) {
                 return Promise.resolve({err: 'block is scanned', height: height})
             }

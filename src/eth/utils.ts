@@ -33,6 +33,18 @@ function toBn(n: string, decimals: number) {
     return bn
 }
 
+function decodeDataArg(data: string, idx: number = 0) {
+    if (data.startsWith('0x')) {
+        data = data.slice(2)
+    }
+    return data.slice(64 * idx, 64 * (idx + 1))
+}
+
+function decodeDataAddress(data: string, idx: number = 0) {
+    let arg = decodeDataArg(data, idx)
+    return convertAddressFromHex64(arg)
+}
+
 ;(async () => {
 //     let addr = convertAddressFromHex64('0x0000000000000000000000009c0f32795af5eb071bae6fcbc6f4a10c2d3cc7e6')
 //     console.log(addr)
@@ -51,5 +63,6 @@ export {
     sleep,
     toBn,
     bnToString,
+    decodeDataAddress,
     convertAddressFromHex64,
 }

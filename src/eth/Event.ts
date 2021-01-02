@@ -1,6 +1,6 @@
 import prisma from "../model/db"
 import { BalanceEvent, BalanceEventTokenDeposit, BalanceEventTokenTransfer, BalanceEventTokenWithdraw } from "./Push"
-import { convertAddressFromHex64 } from './utils'
+import { convertAddressFromHex64, decodeDataAddress } from './utils'
 
 export const EventKecekTransfer = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 export const EventKecekDeposit  = '0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c'  // weth deposit
@@ -85,18 +85,28 @@ class EthTxEvent {
         case EventKecekTransfer:
             // Transfer (index_topic_1 address src, index_topic_2 address dst, uint256 wad)
             let src = convertAddressFromHex64(this.topic1), dst = convertAddressFromHex64(this.topic2)
+            if (src === '0x') {
+                if (this.data.length < 130) { // 2(0x) + 64 + 64
+                    console.warn('getBalanceEvent invalid EventKecekTransfer data: %s', JSON.stringify(this))
+                    return null
+                }
+                //
+                src = decodeDataAddress(this.data, 0)
+                dst = decodeDataAddress(this.data, 1)
+                console.info('decode transfer from/to from data:', src, dst, this.transactionHash)
+            }
             return [
-                new BalanceEvent(src, BalanceEventTokenTransfer, this.address),
-                new BalanceEvent(dst, BalanceEventTokenTransfer, this.address),
+                new BalanceEvent(src, BalanceEventTokenTransfer, this.address, this.blockNumber, this.transactionHash),
+                new BalanceEvent(dst, BalanceEventTokenTransfer, this.address, this.blockNumber, this.transactionHash),
             ]
         
         case EventKecekDeposit:
             // address: 充币合约的token, 通常是erc20
-            return [new BalanceEvent(convertAddressFromHex64(this.topic1), BalanceEventTokenDeposit, this.address)]
+            return [new BalanceEvent(convertAddressFromHex64(this.topic1), BalanceEventTokenDeposit, this.address, this.blockNumber)]
 
         case EventKecekWithdraw:
             // address: 充币合约的token, 通常是erc20
-            return [new BalanceEvent(convertAddressFromHex64(this.topic1), BalanceEventTokenWithdraw, this.address)]
+            return [new BalanceEvent(convertAddressFromHex64(this.topic1), BalanceEventTokenWithdraw, this.address, this.blockNumber)]
         } 
 
         return null
