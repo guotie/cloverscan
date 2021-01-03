@@ -1,5 +1,6 @@
 import LRU from 'lru-cache'
 import BigNumber from 'bignumber.js'
+import Web3 from 'web3'
 
 import provider from './Provider'
 import { getLatestBlockNumber } from './Block'
@@ -274,8 +275,8 @@ async function getTokenInfo(address: string): Promise<CacheTokenInfo> {
 }
 
 
-async function batchGetInfo(address: string) {
-    let tokenCont = getTokenContractInst(address)
+async function batchGetInfo(provider: Web3, address: string) {
+    let tokenCont = new provider.eth.Contract(Erc20ABI, address) // getTokenContractInst(address)
     let name = ''
         , symbol = ''
         , decimals = 0
@@ -284,29 +285,29 @@ async function batchGetInfo(address: string) {
     
     let batch = new provider.BatchRequest();
     await new Promise(function(resolve, reject) {
-        batch.add(tokenCont.methods.name().call.request(arg, (err: any, data: any) => {
-            if (err) {
-                // console.warn(err)
-                return
-            }
-            name = data
-        }))
 
-        batch.add(tokenCont.methods.symbol().call.request(arg, (err: any, data: any) => {
-            if (err) { return }
-            symbol = data
-        }))
         batch.add(tokenCont.methods.decimals().call.request(arg, (err: any, data: any) => {
             if (err) { return }
             console.log('decimals:', data)
             decimals = +data
         }))
 
+        batch.add(tokenCont.methods.name().call.request(arg, (err: any, data: any) => {
+            if (err) {
+                console.warn(err)
+                return
+            }
+            name = data
+        }))
+        batch.add(tokenCont.methods.symbol().call.request(arg, (err: any, data: any) => {
+            if (err) { console.warn(err) } else { symbol = data }
+            
+            resolve('')
+        }))
         batch.add(tokenCont.methods.totalSupply().call.request(arg, (err: any, data: any) => {
             if (!err) {
                 totalSupply = data
             }
-            resolve('')
         }))
 
         batch.execute()

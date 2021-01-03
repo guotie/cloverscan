@@ -1,6 +1,8 @@
 import BigNumber from 'bignumber.js'
 
 require('dotenv').config()
+
+import provider from './Provider'
 import { getTokenInfo, getBalance, getCachedLatestBlockNumber, batchGetInfo } from './Updater'
 import { sleep } from './utils'
 
@@ -82,9 +84,10 @@ async function testRevert() {
     //     let bal = await getBalance(t.address, t.token, t.height)
     //     console.log('tx: %s address: %s token: %s balance: %s', t.txHash, t.address, t.token, bal)
     // })
-    ts.forEach(async t => {
-        await batchGetInfo(t.token)
-    })
+    // ts.forEach(async t => {
+    //     await batchGetInfo(provider, t.token)
+    // })
+    batchGetInfo(provider, '0xdac17f958d2ee523a2206206994597c13d831ec7')
 }
 
 ;(async () => {

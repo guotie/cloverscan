@@ -1,6 +1,7 @@
 require('dotenv').config()
 
 import provider from './Provider'
+import { connectBrokers } from '../kafka/push'
 import { EthBlock, handleBlock, cleanBlockDataByHeight, getLatestBlockNumber } from './Block'
 import { deleteBlockScanStatus } from './Status'
 import { sleep } from './utils'
@@ -113,6 +114,7 @@ async function startScanBlock(start: number, end: number, token: number, clean =
 }
 
 ;(async () => {
+    await connectBrokers()
     // let height = await getLatestBlockNumber()
     // console.log('height: ', height)
     let start = process.env.SCAN_START_BLOCK ? +process.env.SCAN_START_BLOCK : 0
@@ -120,7 +122,7 @@ async function startScanBlock(start: number, end: number, token: number, clean =
         , max = process.env.CONNCURRENT ? +process.env.CONNCURRENT : 100
     // doScanBlock(1216432)
     // cleanBlockDataByHeight(1216432)
-    await startScanBlock(start, start + 2, max, false)
+    await startScanBlock(start, end, max, false)
     // let b1 = await EthBlock.getDBBlockByHeight(1)
     // let bn = await EthBlock.getDBBlockByHeight(6000004)
     // console.log('b1:', b1)
